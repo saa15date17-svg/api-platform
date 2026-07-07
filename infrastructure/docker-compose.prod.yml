@@ -1,0 +1,321 @@
+# =============================================================================
+# API Platform — Production Docker Compose
+# =============================================================================
+# This file is the single source of truth for production deployment.
+# It includes all services with health checks, resource limits, restart
+# policies, and proper dependency ordering.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml down
+# =============================================================================
+
+version: "3.9"
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &default-restart "unless-stopped"
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  api-platform:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  postgres-data:
+    driver: local
+  optamusui-data:
+    driver: local
+  bifrost-data:
+    driver: local
+  zitadel-data:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # ─── PostgreSQL (Shared Database) ────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: api-platform-postgres
+    restart: *default-restart
+    logging: *default-logging
+    networks:
+      - api-platform
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-api_platform}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-api_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # ─── Zitadel (Identity & Access Management) ───────────────────────────────
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v4.13.0
+    container_name: api-platform-zitadel
+    restart: *default-restart
+    logging: *default-logging
+    networks:
+      - api-platform
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ZITADEL_MASTERKEY: ${ZITADEL_MASTERKEY:?ZITADEL_MASTERKEY is required}
+      ZITADEL_DATABASE_POSTGRES_HOST: postgres
+      ZITADEL_DATABASE_POSTGRES_PORT: "5432"
+      ZITADEL_DATABASE_POSTGRES_DATABASE: ${ZITADEL_DB:-zitadel}
+      ZITADEL_DATABASE_POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      ZITADEL_DATABASE_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      ZITADEL_DATABASE_POSTGRES_SSL_MODE: disable
+      ZITADEL_TLS_MODE: disabled
+    command: start-from-init --masterkeyFromEnv --tlsMode disabled
+    volumes:
+      - zitadel-data:/zitadel
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/debug/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  # ─── Bifrost (AI Gateway) ─────────────────────────────────────────────────
+  bifrost:
+    image: maximhq/bifrost:latest
+    container_name: api-platform-bifrost
+    restart: *default-restart
+    logging: *default-logging
+    networks:
+      - api-platform
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      APP_PORT: "8080"
+      APP_HOST: 0.0.0.0
+      LOG_LEVEL: ${BIFROST_LOG_LEVEL:-info}
+      LOG_STYLE: json
+      APP_DIR: /app/data
+      # AI Provider Keys (at least one required)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY or ANTHROPIC_API_KEY is required}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - bifrost-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # ─── MainBackend (Python API Server) ──────────────────────────────────────
+  main-backend:
+    build:
+      context: ../services/main-backend
+      dockerfile: Dockerfile
+      args:
+        BUILD_HASH: ${BUILD_HASH:-dev}
+    container_name: api-platform-main-backend
+    restart: *default-restart
+    logging: *default-logging
+    networks:
+      - api-platform
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      PORT: "9000"
+      HOST: "0.0.0.0"
+      # Database
+      DATABASE_URL: ${MAINBACKEND_DATABASE_URL:?MAINBACKEND_DATABASE_URL is required}
+      # AI Gateway
+      OPENAI_API_BASE_URL: http://bifrost:8080/v1
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      RAG_EMBEDDING_MODEL_AUTO_UPDATE: "false"
+      HF_HUB_OFFLINE: "1"
+      # Auth (Zitadel OIDC)
+      ZITADEL_OIDC_URL: ${ZITADEL_OIDC_URL:?ZITADEL_OIDC_URL is required}
+      ZITADEL_OPENWEBUI_CLIENT_ID: ${ZITADEL_OPENWEBUI_CLIENT_ID:?ZITADEL_OPENWEBUI_CLIENT_ID is required}
+      ZITADEL_OPENWEBUI_CLIENT_SECRET: ${ZITADEL_OPENWEBUI_CLIENT_SECRET:?ZITADEL_OPENWEBUI_CLIENT_SECRET is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      # OptamusUI config
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?WEBUI_SECRET_KEY is required}
+      WEBUI_NAME: "Optamus AI"
+      ENABLE_SIGNUP: "false"
+      ENABLE_LOGIN_FORM: "false"
+      ENABLE_OAUTH_SIGNUP: "true"
+      OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
+      OPENID_PROVIDER_URL: ${ZITADEL_OIDC_URL:?ZITADEL_OIDC_URL is required}
+      OAUTH_CLIENT_ID: ${ZITADEL_OPENWEBUI_CLIENT_ID:?ZITADEL_OPENWEBUI_CLIENT_ID is required}
+      OAUTH_CLIENT_SECRET: ${ZITADEL_OPENWEBUI_CLIENT_SECRET:?ZITADEL_OPENWEBUI_CLIENT_SECRET is required}
+      OAUTH_SCOPES: "openid profile email"
+      CORS_ALLOW_ORIGIN: "https://app.optamus.cloud;https://admin.optamus.cloud;https://optamus.cloud;https://www.optamus.cloud"
+      # Thin proxy — MainBackend delegates AI routing to Bifrost
+      BIFROST_BASE_URL: http://bifrost:8080
+    volumes:
+      - main-backend-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      bifrost:
+        condition: service_healthy
+      zitadel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # ─── OptamusUI (Chat Frontend) ─────────────────────────────────────────────
+  optamusui:
+    build:
+      context: ../services/optamusUI
+      dockerfile: Dockerfile.optamus
+      args:
+        BUILD_HASH: ${BUILD_HASH:-dev}
+    container_name: api-platform-optamusui
+    restart: *default-restart
+    logging: *default-logging
+    networks:
+      - api-platform
+    ports:
+      - "127.0.0.1:3000:8080"
+    environment:
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?WEBUI_SECRET_KEY is required}
+      WEBUI_NAME: "Optamus AI"
+      WEBUI_FAVICON_URL: "/static/favicon.svg"
+      ANONYMIZED_TELEMETRY: "false"
+      SCARF_NO_ANALYTICS: "true"
+      DO_NOT_TRACK: "true"
+      OPENAI_API_BASE_URL: http://bifrost:8080/v1
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      ENABLE_SIGNUP: "false"
+      ENABLE_LOGIN_FORM: "false"
+      ENABLE_OAUTH_SIGNUP: "true"
+      OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
+      OPENID_PROVIDER_URL: ${ZITADEL_OIDC_URL:?ZITADEL_OIDC_URL is required}
+      OAUTH_CLIENT_ID: ${ZITADEL_OPENWEBUI_CLIENT_ID:?ZITADEL_OPENWEBUI_CLIENT_ID is required}
+      OAUTH_CLIENT_SECRET: ${ZITADEL_OPENWEBUI_CLIENT_SECRET:?ZITADEL_OPENWEBUI_CLIENT_SECRET is required}
+      OAUTH_SCOPES: "openid profile email"
+      CORS_ALLOW_ORIGIN: "https://app.optamus.cloud;https://admin.optamus.cloud;https://optamus.cloud;https://www.optamus.cloud"
+      HOST: "0.0.0.0"
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - optamusui-data:/app/backend/data
+    depends_on:
+      main-backend:
+        condition: service_healthy
+      bifrost:
+        condition: service_healthy
+      zitadel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # ─── Admin Dashboard (React + Vite + Ant Design) ───────────────────────────
+  admin-dashboard:
+    build:
+      context: ../services/admin-dashboard
+      dockerfile: Dockerfile
+      args:
+        BUILD_HASH: ${BUILD_HASH:-dev}
+    container_name: api-platform-admin-dashboard
+    restart: *default-restart
+    logging: *default-logging
+    networks:
+      - api-platform
+    ports:
+      - "127.0.0.1:3001:80"
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-}
+      AUTH_BASE_URL: ${AUTH_BASE_URL:-https://auth.optamus.cloud}
+      ZITADEL_CLIENT_ID: ${ZITADEL_ADMIN_CLIENT_ID:?ZITADEL_ADMIN_CLIENT_ID is required}
+      ZITADEL_CLIENT_SECRET: ${ZITADEL_ADMIN_CLIENT_SECRET:?ZITADEL_ADMIN_CLIENT_SECRET is required}
+    depends_on:
+      main-backend:
+        condition: service_healthy
+      zitadel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M

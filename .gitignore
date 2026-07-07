@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+vendor/
+**/node_modules/
+
+# Build output
+dist/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go
+*.test
+*.out
+go.work
+
+# Environment
+.env
+.env.local
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# OpenWebUI (cloned)
+services/openwebui/backend/
+services/openwebui/src/
+services/openwebui/node_modules/
+.aider*
+
+# Local configs
+.qwen/
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v4/

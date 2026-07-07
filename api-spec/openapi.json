@@ -1,0 +1,2804 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Optimus AI Platform API",
+    "description": "Full REST API specification for the Optimus AI platform covering authentication, users, chats, models, files, knowledge, prompts, tools, groups, functions, skills, memories, notes, channels, automations, calendar, folders, configs, and third-party integrations.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Optimus AI Support",
+      "url": "https://github.com/optimus-ai"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "security": [
+    { "BearerAuth": [] },
+    { "ApiKeyAuth": [] }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Health and readiness probes" },
+    { "name": "Config", "description": "Global configuration" },
+    { "name": "Models", "description": "Model listing and selection" },
+    { "name": "Chat", "description": "Chat completions" },
+    { "name": "Auth", "description": "Authentication and user management" },
+    { "name": "Users", "description": "User administration" },
+    { "name": "Chats", "description": "Chat session management" },
+    { "name": "ModelAdmin", "description": "Model CRUD administration" },
+    { "name": "Files", "description": "File uploads and retrieval" },
+    { "name": "Knowledge", "description": "Knowledge base management" },
+    { "name": "Prompts", "description": "Prompt template management" },
+    { "name": "Tools", "description": "Tool management" },
+    { "name": "Groups", "description": "Group management" },
+    { "name": "Functions", "description": "Function management" },
+    { "name": "Skills", "description": "Skill management" },
+    { "name": "Memories", "description": "Memory management" },
+    { "name": "Notes", "description": "Note management" },
+    { "name": "Channels", "description": "Channel management" },
+    { "name": "Automations", "description": "Automation management" },
+    { "name": "Calendar", "description": "Calendar event management" },
+    { "name": "Folders", "description": "Folder management" },
+    { "name": "Configs", "description": "Platform configuration endpoints" },
+    { "name": "OpenAI", "description": "OpenAI integration" },
+    { "name": "Ollama", "description": "Ollama integration" },
+    { "name": "WebSocket", "description": "WebSocket / Socket.IO endpoint" }
+  ],
+  "paths": {
+    "/api/config": {
+      "get": {
+        "tags": ["Config"],
+        "summary": "Get global configuration",
+        "operationId": "getGlobalConfig",
+        "responses": {
+          "200": { "description": "Configuration retrieved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConfigResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "tags": ["Models"],
+        "summary": "List available models",
+        "operationId": "listModels",
+        "responses": {
+          "200": { "description": "Models listed", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Model" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/chat/completions": {
+      "post": {
+        "tags": ["Chat"],
+        "summary": "Create chat completion",
+        "operationId": "createChatCompletion",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatCompletionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Completion created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatCompletionResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/InternalServerError" }
+        }
+      }
+    },
+    "/api/chat/completed": {
+      "post": {
+        "tags": ["Chat"],
+        "summary": "Notify chat completed",
+        "operationId": "notifyChatCompleted",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatCompletedRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Completion acknowledged" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": { "description": "Healthy", "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "type": "string", "example": "healthy" } } } } } }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Readiness check",
+        "operationId": "readyCheck",
+        "responses": {
+          "200": { "description": "Ready" },
+          "503": { "description": "Not ready" }
+        }
+      }
+    },
+
+    "/api/v1/auths/": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get current user auth info",
+        "operationId": "getAuthInfo",
+        "responses": {
+          "200": { "description": "Auth info", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthInfo" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auths/signin": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign in",
+        "operationId": "signIn",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SignInRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Signed in", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/api/v1/auths/signup": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign up",
+        "operationId": "signUp",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SignUpRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Signed up", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthResponse" } } } },
+          "400": { "description": "Invalid input" }
+        }
+      }
+    },
+    "/api/v1/auths/signout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign out",
+        "operationId": "signOut",
+        "responses": {
+          "200": { "description": "Signed out" }
+        }
+      }
+    },
+    "/api/v1/auths/add": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Add user (admin)",
+        "operationId": "addUser",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AddUserRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "User added" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/auths/admin/details": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get admin details",
+        "operationId": "getAdminDetails",
+        "responses": {
+          "200": { "description": "Admin details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AdminDetails" } } } },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/auths/admin/config": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get admin config",
+        "operationId": "getAdminConfig",
+        "responses": {
+          "200": { "description": "Admin config", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AdminConfig" } } } },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Update admin config",
+        "operationId": "updateAdminConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AdminConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/auths/update/profile": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Update user profile",
+        "operationId": "updateProfile",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateProfileRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Profile updated" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auths/update/password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Update password",
+        "operationId": "updatePassword",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdatePasswordRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Password updated" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/auths/api_key": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get API keys",
+        "operationId": "getApiKeys",
+        "responses": {
+          "200": { "description": "API keys", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ApiKey" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Create API key",
+        "operationId": "createApiKey",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateApiKeyRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "API key created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiKey" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "delete": {
+        "tags": ["Auth"],
+        "summary": "Delete API key",
+        "operationId": "deleteApiKey",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeleteApiKeyRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "API key deleted" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+
+    "/api/v1/users/": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get current user",
+        "operationId": "getCurrentUser",
+        "responses": {
+          "200": { "description": "User info", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/users/search": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Search users",
+        "operationId": "searchUsers",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Search query" }
+        ],
+        "responses": {
+          "200": { "description": "Users found", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } } } }
+        }
+      }
+    },
+    "/api/v1/users/all": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get all users",
+        "operationId": "getAllUsers",
+        "responses": {
+          "200": { "description": "All users", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } } } } }
+        }
+      }
+    },
+    "/api/v1/users/groups": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user groups",
+        "operationId": "getUserGroups",
+        "responses": {
+          "200": { "description": "User groups", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Group" } } } } }
+        }
+      }
+    },
+    "/api/v1/users/default/permissions": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get default permissions",
+        "operationId": "getDefaultPermissions",
+        "responses": {
+          "200": { "description": "Default permissions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Permissions" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Update default permissions",
+        "operationId": "updateDefaultPermissions",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Permissions" } } }
+        },
+        "responses": {
+          "200": { "description": "Permissions updated" }
+        }
+      }
+    },
+    "/api/v1/users/update/role": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Update user role",
+        "operationId": "updateUserRole",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateRoleRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Role updated" }
+        }
+      }
+    },
+    "/api/v1/users/user/settings": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user settings",
+        "operationId": "getUserSettings",
+        "responses": {
+          "200": { "description": "User settings", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserSettings" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Update user settings",
+        "operationId": "updateUserSettings",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserSettings" } } }
+        },
+        "responses": {
+          "200": { "description": "Settings updated" }
+        }
+      }
+    },
+    "/api/v1/users/user/info": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user info",
+        "operationId": "getUserInfo",
+        "responses": {
+          "200": { "description": "User info", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Update user info",
+        "operationId": "updateUserInfo",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+        },
+        "responses": {
+          "200": { "description": "Info updated" }
+        }
+      }
+    },
+    "/api/v1/users/{userId}/update": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user by ID",
+        "operationId": "getUserById",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "User", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Update user by ID",
+        "operationId": "updateUserById",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+        },
+        "responses": {
+          "200": { "description": "User updated" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/users/{userId}": {
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete user by ID",
+        "operationId": "deleteUserById",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "User deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/chats/": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get chats for current user",
+        "operationId": "getChats",
+        "responses": {
+          "200": { "description": "Chats", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Chat" } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/new": {
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Create new chat",
+        "operationId": "createChat",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateChatRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Chat created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Chat" } } } }
+        }
+      }
+    },
+    "/api/v1/chats/config": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get chat config",
+        "operationId": "getChatConfig",
+        "responses": {
+          "200": { "description": "Chat config", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatConfig" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Update chat config",
+        "operationId": "updateChatConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChatConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" }
+        }
+      }
+    },
+    "/api/v1/chats/all": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get all chats",
+        "operationId": "getAllChats",
+        "responses": {
+          "200": { "description": "All chats", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Chat" } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/all/tags": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get all chat tags",
+        "operationId": "getAllChatTags",
+        "responses": {
+          "200": { "description": "Tags", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/all/archived": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get all archived chats",
+        "operationId": "getArchivedChats",
+        "responses": {
+          "200": { "description": "Archived chats", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Chat" } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/search": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Search chats",
+        "operationId": "searchChats",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Search results", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Chat" } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/shared": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get shared chats",
+        "operationId": "getSharedChats",
+        "responses": {
+          "200": { "description": "Shared chats", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Chat" } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/pinned": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get pinned chats",
+        "operationId": "getPinnedChats",
+        "responses": {
+          "200": { "description": "Pinned chats", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Chat" } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/{chatId}": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "Get chat by ID",
+        "operationId": "getChatById",
+        "parameters": [
+          { "name": "chatId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Chat" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Update chat by ID",
+        "operationId": "updateChatById",
+        "parameters": [
+          { "name": "chatId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateChatRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Chat updated" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Chats"],
+        "summary": "Delete chat by ID",
+        "operationId": "deleteChatById",
+        "parameters": [
+          { "name": "chatId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Chat deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/chats/{chatId}/pin": {
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Pin/unpin chat",
+        "operationId": "pinChat",
+        "parameters": [
+          { "name": "chatId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Pin toggled" }
+        }
+      }
+    },
+    "/api/v1/chats/{chatId}/share": {
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Share/unshare chat",
+        "operationId": "shareChat",
+        "parameters": [
+          { "name": "chatId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Share toggled", "content": { "application/json": { "schema": { "type": "object", "properties": { "shareId": { "type": "string" } } } } } }
+        }
+      }
+    },
+    "/api/v1/chats/{chatId}/archive": {
+      "post": {
+        "tags": ["Chats"],
+        "summary": "Archive/unarchive chat",
+        "operationId": "archiveChat",
+        "parameters": [
+          { "name": "chatId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Archive toggled" }
+        }
+      }
+    },
+    "/api/v1/chats/list/user/{userId}": {
+      "get": {
+        "tags": ["Chats"],
+        "summary": "List chats for a user",
+        "operationId": "listChatsByUser",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "User's chats", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Chat" } } } } }
+        }
+      }
+    },
+
+    "/api/v1/models/list": {
+      "get": {
+        "tags": ["ModelAdmin"],
+        "summary": "List all models",
+        "operationId": "listAllModels",
+        "responses": {
+          "200": { "description": "Models", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Model" } } } } }
+        }
+      }
+    },
+    "/api/v1/models/tags": {
+      "get": {
+        "tags": ["ModelAdmin"],
+        "summary": "Get model tags",
+        "operationId": "getModelTags",
+        "responses": {
+          "200": { "description": "Tags", "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" } } } } }
+        }
+      }
+    },
+    "/api/v1/models/base": {
+      "get": {
+        "tags": ["ModelAdmin"],
+        "summary": "Get base models",
+        "operationId": "getBaseModels",
+        "responses": {
+          "200": { "description": "Base models", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Model" } } } } }
+        }
+      }
+    },
+    "/api/v1/models/create": {
+      "post": {
+        "tags": ["ModelAdmin"],
+        "summary": "Create model",
+        "operationId": "createModel",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateModelRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Model created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Model" } } } }
+        }
+      }
+    },
+    "/api/v1/models/import": {
+      "post": {
+        "tags": ["ModelAdmin"],
+        "summary": "Import model",
+        "operationId": "importModel",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ImportModelRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Model imported" }
+        }
+      }
+    },
+    "/api/v1/models/model": {
+      "get": {
+        "tags": ["ModelAdmin"],
+        "summary": "Get model details",
+        "operationId": "getModel",
+        "parameters": [
+          { "name": "id", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Model", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Model" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/models/model/update": {
+      "post": {
+        "tags": ["ModelAdmin"],
+        "summary": "Update model",
+        "operationId": "updateModel",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateModelRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Model updated" }
+        }
+      }
+    },
+    "/api/v1/models/model/delete": {
+      "post": {
+        "tags": ["ModelAdmin"],
+        "summary": "Delete model",
+        "operationId": "deleteModel",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] } } }
+        },
+        "responses": {
+          "200": { "description": "Model deleted" }
+        }
+      }
+    },
+
+    "/api/v1/files/": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "List files",
+        "operationId": "listFiles",
+        "responses": {
+          "200": { "description": "Files", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/FileObject" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["Files"],
+        "summary": "Upload file",
+        "operationId": "uploadFile",
+        "requestBody": {
+          "required": true,
+          "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "file": { "type": "string", "format": "binary" } }, "required": ["file"] } } }
+        },
+        "responses": {
+          "200": { "description": "File uploaded", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FileObject" } } } }
+        }
+      }
+    },
+    "/api/v1/files/search": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "Search files",
+        "operationId": "searchFiles",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Files found", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/FileObject" } } } } }
+        }
+      }
+    },
+    "/api/v1/files/count": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "Count files",
+        "operationId": "countFiles",
+        "responses": {
+          "200": { "description": "File count", "content": { "application/json": { "schema": { "type": "object", "properties": { "count": { "type": "integer" } } } } } }
+        }
+      }
+    },
+    "/api/v1/files/{fileId}": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "Get file by ID",
+        "operationId": "getFileById",
+        "parameters": [
+          { "name": "fileId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "File", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FileObject" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Files"],
+        "summary": "Delete file by ID",
+        "operationId": "deleteFileById",
+        "parameters": [
+          { "name": "fileId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "File deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/files/{fileId}/content": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "Get file content",
+        "operationId": "getFileContent",
+        "parameters": [
+          { "name": "fileId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "File content", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/knowledge/create": {
+      "post": {
+        "tags": ["Knowledge"],
+        "summary": "Create knowledge base",
+        "operationId": "createKnowledgeBase",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateKnowledgeRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Knowledge base created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KnowledgeBase" } } } }
+        }
+      }
+    },
+    "/api/v1/knowledge/": {
+      "get": {
+        "tags": ["Knowledge"],
+        "summary": "List knowledge bases",
+        "operationId": "listKnowledgeBases",
+        "responses": {
+          "200": { "description": "Knowledge bases", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/KnowledgeBase" } } } } }
+        }
+      }
+    },
+    "/api/v1/knowledge/{knowledgeId}": {
+      "get": {
+        "tags": ["Knowledge"],
+        "summary": "Get knowledge base by ID",
+        "operationId": "getKnowledgeBaseById",
+        "parameters": [
+          { "name": "knowledgeId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Knowledge base", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KnowledgeBase" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/knowledge/{knowledgeId}/file/add": {
+      "post": {
+        "tags": ["Knowledge"],
+        "summary": "Add file to knowledge base",
+        "operationId": "addFileToKnowledge",
+        "parameters": [
+          { "name": "knowledgeId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "fileId": { "type": "string" } }, "required": ["fileId"] } } }
+        },
+        "responses": {
+          "200": { "description": "File added" }
+        }
+      }
+    },
+    "/api/v1/knowledge/{knowledgeId}/url/add": {
+      "post": {
+        "tags": ["Knowledge"],
+        "summary": "Add URL to knowledge base",
+        "operationId": "addUrlToKnowledge",
+        "parameters": [
+          { "name": "knowledgeId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "url": { "type": "string", "format": "uri" } }, "required": ["url"] } } }
+        },
+        "responses": {
+          "200": { "description": "URL added" }
+        }
+      }
+    },
+    "/api/v1/knowledge/{knowledgeId}/access/update": {
+      "post": {
+        "tags": ["Knowledge"],
+        "summary": "Update knowledge base access",
+        "operationId": "updateKnowledgeAccess",
+        "parameters": [
+          { "name": "knowledgeId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KnowledgeAccess" } } }
+        },
+        "responses": {
+          "200": { "description": "Access updated" }
+        }
+      }
+    },
+
+    "/api/v1/prompts/create": {
+      "post": {
+        "tags": ["Prompts"],
+        "summary": "Create prompt",
+        "operationId": "createPrompt",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreatePromptRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Prompt created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Prompt" } } } }
+        }
+      }
+    },
+    "/api/v1/prompts/": {
+      "get": {
+        "tags": ["Prompts"],
+        "summary": "List prompts",
+        "operationId": "listPrompts",
+        "responses": {
+          "200": { "description": "Prompts", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Prompt" } } } } }
+        }
+      }
+    },
+    "/api/v1/prompts/{promptId}": {
+      "get": {
+        "tags": ["Prompts"],
+        "summary": "Get prompt by ID",
+        "operationId": "getPromptById",
+        "parameters": [
+          { "name": "promptId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Prompt", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Prompt" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Prompts"],
+        "summary": "Update prompt",
+        "operationId": "updatePrompt",
+        "parameters": [
+          { "name": "promptId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdatePromptRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Prompt updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Prompts"],
+        "summary": "Delete prompt",
+        "operationId": "deletePrompt",
+        "parameters": [
+          { "name": "promptId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Prompt deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/tools/create": {
+      "post": {
+        "tags": ["Tools"],
+        "summary": "Create tool",
+        "operationId": "createTool",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateToolRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Tool created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Tool" } } } }
+        }
+      }
+    },
+    "/api/v1/tools/": {
+      "get": {
+        "tags": ["Tools"],
+        "summary": "List tools",
+        "operationId": "listTools",
+        "responses": {
+          "200": { "description": "Tools", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Tool" } } } } }
+        }
+      }
+    },
+    "/api/v1/tools/{toolId}": {
+      "get": {
+        "tags": ["Tools"],
+        "summary": "Get tool by ID",
+        "operationId": "getToolById",
+        "parameters": [
+          { "name": "toolId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Tool", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Tool" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Tools"],
+        "summary": "Update tool",
+        "operationId": "updateTool",
+        "parameters": [
+          { "name": "toolId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateToolRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Tool updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Tools"],
+        "summary": "Delete tool",
+        "operationId": "deleteTool",
+        "parameters": [
+          { "name": "toolId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Tool deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/groups/create": {
+      "post": {
+        "tags": ["Groups"],
+        "summary": "Create group",
+        "operationId": "createGroup",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateGroupRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Group created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Group" } } } }
+        }
+      }
+    },
+    "/api/v1/groups/": {
+      "get": {
+        "tags": ["Groups"],
+        "summary": "List groups",
+        "operationId": "listGroups",
+        "responses": {
+          "200": { "description": "Groups", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Group" } } } } }
+        }
+      }
+    },
+    "/api/v1/groups/{groupId}": {
+      "get": {
+        "tags": ["Groups"],
+        "summary": "Get group by ID",
+        "operationId": "getGroupById",
+        "parameters": [
+          { "name": "groupId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Group", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Group" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Groups"],
+        "summary": "Update group",
+        "operationId": "updateGroup",
+        "parameters": [
+          { "name": "groupId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateGroupRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Group updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Groups"],
+        "summary": "Delete group",
+        "operationId": "deleteGroup",
+        "parameters": [
+          { "name": "groupId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Group deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/functions/create": {
+      "post": {
+        "tags": ["Functions"],
+        "summary": "Create function",
+        "operationId": "createFunction",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFunctionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Function created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Function" } } } }
+        }
+      }
+    },
+    "/api/v1/functions/": {
+      "get": {
+        "tags": ["Functions"],
+        "summary": "List functions",
+        "operationId": "listFunctions",
+        "responses": {
+          "200": { "description": "Functions", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Function" } } } } }
+        }
+      }
+    },
+    "/api/v1/functions/{functionId}": {
+      "get": {
+        "tags": ["Functions"],
+        "summary": "Get function by ID",
+        "operationId": "getFunctionById",
+        "parameters": [
+          { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Function", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Function" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Functions"],
+        "summary": "Update function",
+        "operationId": "updateFunction",
+        "parameters": [
+          { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateFunctionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Function updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Functions"],
+        "summary": "Delete function",
+        "operationId": "deleteFunction",
+        "parameters": [
+          { "name": "functionId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Function deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/skills/create": {
+      "post": {
+        "tags": ["Skills"],
+        "summary": "Create skill",
+        "operationId": "createSkill",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateSkillRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Skill created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Skill" } } } }
+        }
+      }
+    },
+    "/api/v1/skills/": {
+      "get": {
+        "tags": ["Skills"],
+        "summary": "List skills",
+        "operationId": "listSkills",
+        "responses": {
+          "200": { "description": "Skills", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Skill" } } } } }
+        }
+      }
+    },
+    "/api/v1/skills/{skillId}": {
+      "get": {
+        "tags": ["Skills"],
+        "summary": "Get skill by ID",
+        "operationId": "getSkillById",
+        "parameters": [
+          { "name": "skillId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Skill", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Skill" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Skills"],
+        "summary": "Update skill",
+        "operationId": "updateSkill",
+        "parameters": [
+          { "name": "skillId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateSkillRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Skill updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Skills"],
+        "summary": "Delete skill",
+        "operationId": "deleteSkill",
+        "parameters": [
+          { "name": "skillId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Skill deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/memories/": {
+      "get": {
+        "tags": ["Memories"],
+        "summary": "List memories",
+        "operationId": "listMemories",
+        "responses": {
+          "200": { "description": "Memories", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Memory" } } } } }
+        }
+      }
+    },
+    "/api/v1/memories/add": {
+      "post": {
+        "tags": ["Memories"],
+        "summary": "Add memory",
+        "operationId": "addMemory",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateMemoryRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Memory added", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Memory" } } } }
+        }
+      }
+    },
+    "/api/v1/memories/query": {
+      "post": {
+        "tags": ["Memories"],
+        "summary": "Query memories",
+        "operationId": "queryMemories",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/QueryMemoryRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Memory query results", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Memory" } } } } }
+        }
+      }
+    },
+    "/api/v1/memories/{memoryId}": {
+      "get": {
+        "tags": ["Memories"],
+        "summary": "Get memory by ID",
+        "operationId": "getMemoryById",
+        "parameters": [
+          { "name": "memoryId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Memory", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Memory" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Memories"],
+        "summary": "Delete memory",
+        "operationId": "deleteMemory",
+        "parameters": [
+          { "name": "memoryId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Memory deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/notes/create": {
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Create note",
+        "operationId": "createNote",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateNoteRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Note created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Note" } } } }
+        }
+      }
+    },
+    "/api/v1/notes/": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "List notes",
+        "operationId": "listNotes",
+        "responses": {
+          "200": { "description": "Notes", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Note" } } } } }
+        }
+      }
+    },
+    "/api/v1/notes/{noteId}": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "Get note by ID",
+        "operationId": "getNoteById",
+        "parameters": [
+          { "name": "noteId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Note", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Note" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Update note",
+        "operationId": "updateNote",
+        "parameters": [
+          { "name": "noteId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateNoteRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Note updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Notes"],
+        "summary": "Delete note",
+        "operationId": "deleteNote",
+        "parameters": [
+          { "name": "noteId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Note deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/channels/create": {
+      "post": {
+        "tags": ["Channels"],
+        "summary": "Create channel",
+        "operationId": "createChannel",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateChannelRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Channel created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Channel" } } } }
+        }
+      }
+    },
+    "/api/v1/channels/": {
+      "get": {
+        "tags": ["Channels"],
+        "summary": "List channels",
+        "operationId": "listChannels",
+        "responses": {
+          "200": { "description": "Channels", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Channel" } } } } }
+        }
+      }
+    },
+    "/api/v1/channels/{channelId}": {
+      "get": {
+        "tags": ["Channels"],
+        "summary": "Get channel by ID",
+        "operationId": "getChannelById",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Channel", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Channel" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Channels"],
+        "summary": "Update channel",
+        "operationId": "updateChannel",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateChannelRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Channel updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Channels"],
+        "summary": "Delete channel",
+        "operationId": "deleteChannel",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Channel deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/channels/{channelId}/messages": {
+      "get": {
+        "tags": ["Channels"],
+        "summary": "Get channel messages",
+        "operationId": "getChannelMessages",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Messages", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } } } } }
+        }
+      }
+    },
+    "/api/v1/channels/{channelId}/read": {
+      "post": {
+        "tags": ["Channels"],
+        "summary": "Mark channel as read",
+        "operationId": "markChannelRead",
+        "parameters": [
+          { "name": "channelId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Channel marked as read" }
+        }
+      }
+    },
+
+    "/api/v1/automations/create": {
+      "post": {
+        "tags": ["Automations"],
+        "summary": "Create automation",
+        "operationId": "createAutomation",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateAutomationRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Automation created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Automation" } } } }
+        }
+      }
+    },
+    "/api/v1/automations/": {
+      "get": {
+        "tags": ["Automations"],
+        "summary": "List automations",
+        "operationId": "listAutomations",
+        "responses": {
+          "200": { "description": "Automations", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Automation" } } } } }
+        }
+      }
+    },
+    "/api/v1/automations/{automationId}": {
+      "get": {
+        "tags": ["Automations"],
+        "summary": "Get automation by ID",
+        "operationId": "getAutomationById",
+        "parameters": [
+          { "name": "automationId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Automation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Automation" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Automations"],
+        "summary": "Update automation",
+        "operationId": "updateAutomation",
+        "parameters": [
+          { "name": "automationId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateAutomationRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Automation updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Automations"],
+        "summary": "Delete automation",
+        "operationId": "deleteAutomation",
+        "parameters": [
+          { "name": "automationId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Automation deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/calendar/": {
+      "get": {
+        "tags": ["Calendar"],
+        "summary": "List calendar events",
+        "operationId": "listCalendarEvents",
+        "responses": {
+          "200": { "description": "Events", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CalendarEvent" } } } } }
+        }
+      }
+    },
+    "/api/v1/calendar/create": {
+      "post": {
+        "tags": ["Calendar"],
+        "summary": "Create calendar event",
+        "operationId": "createCalendarEvent",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateCalendarEventRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Event created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CalendarEvent" } } } }
+        }
+      }
+    },
+    "/api/v1/calendar/{eventId}": {
+      "get": {
+        "tags": ["Calendar"],
+        "summary": "Get calendar event by ID",
+        "operationId": "getCalendarEventById",
+        "parameters": [
+          { "name": "eventId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Event", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CalendarEvent" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Calendar"],
+        "summary": "Update calendar event",
+        "operationId": "updateCalendarEvent",
+        "parameters": [
+          { "name": "eventId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateCalendarEventRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Event updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Calendar"],
+        "summary": "Delete calendar event",
+        "operationId": "deleteCalendarEvent",
+        "parameters": [
+          { "name": "eventId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Event deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/folders/": {
+      "get": {
+        "tags": ["Folders"],
+        "summary": "List folders",
+        "operationId": "listFolders",
+        "responses": {
+          "200": { "description": "Folders", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Folder" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["Folders"],
+        "summary": "Create folder",
+        "operationId": "createFolder",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateFolderRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Folder created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Folder" } } } }
+        }
+      }
+    },
+    "/api/v1/folders/{folderId}": {
+      "get": {
+        "tags": ["Folders"],
+        "summary": "Get folder by ID",
+        "operationId": "getFolderById",
+        "parameters": [
+          { "name": "folderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Folder", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Folder" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Folders"],
+        "summary": "Update folder",
+        "operationId": "updateFolder",
+        "parameters": [
+          { "name": "folderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateFolderRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Folder updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Folders"],
+        "summary": "Delete folder",
+        "operationId": "deleteFolder",
+        "parameters": [
+          { "name": "folderId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Folder deleted" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+
+    "/api/v1/configs/models": {
+      "get": {
+        "tags": ["Configs"],
+        "summary": "Get platform model config",
+        "operationId": "getPlatformModelConfig",
+        "responses": {
+          "200": { "description": "Model config", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlatformModelConfig" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Configs"],
+        "summary": "Update platform model config",
+        "operationId": "updatePlatformModelConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlatformModelConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" }
+        }
+      }
+    },
+    "/api/v1/configs/connections": {
+      "get": {
+        "tags": ["Configs"],
+        "summary": "Get connections config",
+        "operationId": "getConnectionsConfig",
+        "responses": {
+          "200": { "description": "Connections config", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectionsConfig" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Configs"],
+        "summary": "Update connections config",
+        "operationId": "updateConnectionsConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConnectionsConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" }
+        }
+      }
+    },
+    "/api/v1/configs/code_execution": {
+      "get": {
+        "tags": ["Configs"],
+        "summary": "Get code execution config",
+        "operationId": "getCodeExecutionConfig",
+        "responses": {
+          "200": { "description": "Code execution config", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CodeExecutionConfig" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Configs"],
+        "summary": "Update code execution config",
+        "operationId": "updateCodeExecutionConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CodeExecutionConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" }
+        }
+      }
+    },
+    "/api/v1/configs/banners": {
+      "get": {
+        "tags": ["Configs"],
+        "summary": "Get banners config",
+        "operationId": "getBannersConfig",
+        "responses": {
+          "200": { "description": "Banners config", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BannersConfig" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Configs"],
+        "summary": "Update banners config",
+        "operationId": "updateBannersConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BannersConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" }
+        }
+      }
+    },
+    "/api/v1/configs/import": {
+      "post": {
+        "tags": ["Configs"],
+        "summary": "Import configuration",
+        "operationId": "importConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object" } } }
+        },
+        "responses": {
+          "200": { "description": "Config imported" }
+        }
+      }
+    },
+    "/api/v1/configs/export": {
+      "get": {
+        "tags": ["Configs"],
+        "summary": "Export configuration",
+        "operationId": "exportConfig",
+        "responses": {
+          "200": { "description": "Config exported", "content": { "application/json": { "schema": { "type": "object" } } } }
+        }
+      }
+    },
+
+    "/openai/models": {
+      "get": {
+        "tags": ["OpenAI"],
+        "summary": "List OpenAI-compatible models",
+        "operationId": "openaiListModels",
+        "responses": {
+          "200": { "description": "Models", "content": { "application/json": { "schema": { "type": "object", "properties": { "object": { "type": "string", "example": "list" }, "data": { "type": "array", "items": { "$ref": "#/components/schemas/OpenAIModel" } } } } } } }
+        }
+      }
+    },
+    "/openai/config/update": {
+      "post": {
+        "tags": ["OpenAI"],
+        "summary": "Update OpenAI config",
+        "operationId": "updateOpenAIConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OpenAIConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" }
+        }
+      }
+    },
+    "/openai/verify": {
+      "post": {
+        "tags": ["OpenAI"],
+        "summary": "Verify OpenAI connection",
+        "operationId": "verifyOpenAI",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyConnectionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Verification result", "content": { "application/json": { "schema": { "type": "object", "properties": { "verified": { "type": "boolean" } } } } } }
+        }
+      }
+    },
+
+    "/ollama/api/tags": {
+      "get": {
+        "tags": ["Ollama"],
+        "summary": "List Ollama models",
+        "operationId": "ollamaListModels",
+        "responses": {
+          "200": { "description": "Models", "content": { "application/json": { "schema": { "type": "object", "properties": { "models": { "type": "array", "items": { "$ref": "#/components/schemas/OllamaModel" } } } } } } }
+        }
+      }
+    },
+    "/ollama/config/update": {
+      "post": {
+        "tags": ["Ollama"],
+        "summary": "Update Ollama config",
+        "operationId": "updateOllamaConfig",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OllamaConfig" } } }
+        },
+        "responses": {
+          "200": { "description": "Config updated" }
+        }
+      }
+    },
+    "/ollama/verify": {
+      "post": {
+        "tags": ["Ollama"],
+        "summary": "Verify Ollama connection",
+        "operationId": "verifyOllama",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyConnectionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Verification result", "content": { "application/json": { "schema": { "type": "object", "properties": { "verified": { "type": "boolean" } } } } } }
+        }
+      }
+    },
+
+    "/ws/socket.io": {
+      "get": {
+        "tags": ["WebSocket"],
+        "summary": "Socket.IO handshake (GET)",
+        "operationId": "socketIOHandshake",
+        "description": "Socket.IO transport handshake. Returns session details for upgrading to WebSocket or polling.",
+        "parameters": [
+          { "name": "EIO", "in": "query", "required": false, "schema": { "type": "string", "default": "4" }, "description": "Engine.IO version" },
+          { "name": "transport", "in": "query", "required": false, "schema": { "type": "string", "enum": ["polling", "websocket"], "default": "polling" }, "description": "Transport type" }
+        ],
+        "responses": {
+          "200": { "description": "Session handshake response" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["WebSocket"],
+        "summary": "Socket.IO polling transport (POST)",
+        "operationId": "socketIOPollingPost",
+        "description": "Socket.IO polling transport POST endpoint for sending messages.",
+        "parameters": [
+          { "name": "sid", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Session ID" }
+        ],
+        "requestBody": {
+          "content": { "text/plain": { "schema": { "type": "string" } } }
+        },
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT access token. Obtained via /api/v1/auths/signin or /api/v1/auths/signup."
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "API key with 'sk-' prefix. Passed as 'Bearer sk-...'"
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Unauthorized – missing or invalid credentials",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "Forbidden": {
+        "description": "Forbidden – insufficient permissions",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "InternalServerError": {
+        "description": "Internal server error",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "detail": { "type": "string", "description": "Error message" }
+        },
+        "required": ["detail"]
+      },
+      "ConfigResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "defaultModel": { "type": "string" },
+          "features": { "type": "object", "additionalProperties": { "type": "boolean" } }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["admin", "user"] },
+          "status": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "profileImage": { "type": "string", "format": "uri" }
+        },
+        "required": ["id", "name", "email", "role"]
+      },
+      "AuthInfo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "role": { "type": "string" },
+          "token": { "type": "string" }
+        }
+      },
+      "SignInRequest": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "minLength": 8 }
+        },
+        "required": ["email", "password"]
+      },
+      "SignUpRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "minLength": 8 }
+        },
+        "required": ["name", "email", "password"]
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "token": { "type": "string" },
+          "role": { "type": "string" }
+        }
+      },
+      "AddUserRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string" },
+          "role": { "type": "string", "enum": ["admin", "user"] }
+        },
+        "required": ["name", "email", "password"]
+      },
+      "AdminDetails": {
+        "type": "object",
+        "properties": {
+          "defaultUserRole": { "type": "string" },
+          "totalUsers": { "type": "integer" }
+        }
+      },
+      "AdminConfig": {
+        "type": "object",
+        "properties": {
+          "defaultUserRole": { "type": "string" },
+          "enableSignups": { "type": "boolean" },
+          "enableApiKeys": { "type": "boolean" }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "profileImage": { "type": "string" }
+        }
+      },
+      "UpdatePasswordRequest": {
+        "type": "object",
+        "properties": {
+          "currentPassword": { "type": "string" },
+          "newPassword": { "type": "string", "minLength": 8 }
+        },
+        "required": ["currentPassword", "newPassword"]
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "key": { "type": "string", "description": "sk-* prefixed key (shown once at creation)" },
+          "name": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "lastUsedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        }
+      },
+      "DeleteApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" }
+        },
+        "required": ["id"]
+      },
+      "Group": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateGroupRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "UpdateGroupRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "Permissions": {
+        "type": "object",
+        "properties": {
+          "models": { "type": "boolean" },
+          "prompts": { "type": "boolean" },
+          "files": { "type": "boolean" },
+          "knowledge": { "type": "boolean" },
+          "tools": { "type": "boolean" },
+          "chats": { "type": "boolean" }
+        }
+      },
+      "UpdateRoleRequest": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "role": { "type": "string", "enum": ["admin", "user"] }
+        },
+        "required": ["userId", "role"]
+      },
+      "UserSettings": {
+        "type": "object",
+        "properties": {
+          "theme": { "type": "string", "enum": ["light", "dark", "system"] },
+          "language": { "type": "string" },
+          "notifications": { "type": "boolean" },
+          "defaultModel": { "type": "string" }
+        }
+      },
+      "Model": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "object": { "type": "string", "default": "model" },
+          "created": { "type": "integer" },
+          "owned_by": { "type": "string" },
+          "base_model_id": { "type": ["string", "null"] },
+          "meta": { "type": "object", "additionalProperties": {} },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "CreateModelRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "base_model_id": { "type": ["string", "null"] },
+          "meta": { "type": "object", "additionalProperties": {} },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["name"]
+      },
+      "ImportModelRequest": {
+        "type": "object",
+        "properties": {
+          "model_id": { "type": "string" },
+          "name": { "type": "string" },
+          "meta": { "type": "object", "additionalProperties": {} }
+        },
+        "required": ["model_id", "name"]
+      },
+      "UpdateModelRequest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "meta": { "type": "object", "additionalProperties": {} },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["id"]
+      },
+      "ChatCompletionRequest": {
+        "type": "object",
+        "properties": {
+          "model": { "type": "string" },
+          "messages": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } },
+          "stream": { "type": "boolean", "default": false },
+          "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+          "top_p": { "type": "number", "minimum": 0, "maximum": 1 },
+          "max_tokens": { "type": "integer" },
+          "frequency_penalty": { "type": "number" },
+          "presence_penalty": { "type": "number" },
+          "tools": { "type": "array", "items": { "$ref": "#/components/schemas/ToolDefinition" } },
+          "tool_choice": { "oneOf": [{ "type": "string" }, { "type": "object" }] }
+        },
+        "required": ["model", "messages"]
+      },
+      "ChatCompletionResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string", "default": "chat.completion" },
+          "created": { "type": "integer" },
+          "model": { "type": "string" },
+          "choices": { "type": "array", "items": { "$ref": "#/components/schemas/Choice" } },
+          "usage": { "$ref": "#/components/schemas/Usage" }
+        }
+      },
+      "Choice": {
+        "type": "object",
+        "properties": {
+          "index": { "type": "integer" },
+          "message": { "$ref": "#/components/schemas/Message" },
+          "finish_reason": { "type": "string", "enum": ["stop", "length", "tool_calls"] }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "role": { "type": "string", "enum": ["system", "user", "assistant", "tool"] },
+          "content": { "type": ["string", "null"] },
+          "name": { "type": "string" },
+          "tool_calls": { "type": "array", "items": { "$ref": "#/components/schemas/ToolCall" } },
+          "tool_call_id": { "type": "string" }
+        },
+        "required": ["role"]
+      },
+      "ToolCall": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "default": "function" },
+          "function": { "$ref": "#/components/schemas/FunctionCall" }
+        }
+      },
+      "FunctionCall": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "arguments": { "type": "string" }
+        }
+      },
+      "ToolDefinition": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "default": "function" },
+          "function": { "$ref": "#/components/schemas/FunctionDefinition" }
+        }
+      },
+      "FunctionDefinition": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "parameters": { "type": "object" }
+        },
+        "required": ["name"]
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "prompt_tokens": { "type": "integer" },
+          "completion_tokens": { "type": "integer" },
+          "total_tokens": { "type": "integer" }
+        }
+      },
+      "ChatCompletedRequest": {
+        "type": "object",
+        "properties": {
+          "chatId": { "type": "string" },
+          "model": { "type": "string" },
+          "messages": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } },
+          "usage": { "$ref": "#/components/schemas/Usage" }
+        },
+        "required": ["chatId"]
+      },
+      "Chat": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "chatId": { "type": "string" },
+          "userId": { "type": "string" },
+          "models": { "type": "array", "items": { "type": "string" } },
+          "messages": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } },
+          "history": { "type": "object", "additionalProperties": {} },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "pinned": { "type": "boolean" },
+          "archived": { "type": "boolean" },
+          "shared": { "type": "boolean" },
+          "shareId": { "type": ["string", "null"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateChatRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "models": { "type": "array", "items": { "type": "string" } },
+          "messages": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "UpdateChatRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "models": { "type": "array", "items": { "type": "string" } },
+          "messages": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "pinned": { "type": "boolean" },
+          "archived": { "type": "boolean" }
+        }
+      },
+      "ChatConfig": {
+        "type": "object",
+        "properties": {
+          "defaultModel": { "type": "string" },
+          "systemPrompt": { "type": "string" },
+          "temperature": { "type": "number" },
+          "maxTokens": { "type": "integer" }
+        }
+      },
+      "FileObject": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "size": { "type": "integer" },
+          "mimeType": { "type": "string" },
+          "hash": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "KnowledgeBase": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "files": { "type": "array", "items": { "$ref": "#/components/schemas/FileObject" } },
+          "urls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+          "access": { "$ref": "#/components/schemas/KnowledgeAccess" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateKnowledgeRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "KnowledgeAccess": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["private", "public"] },
+          "userIds": { "type": "array", "items": { "type": "string" } },
+          "groupIds": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Prompt": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "description": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "command": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreatePromptRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "description": { "type": "string" },
+          "command": { "type": "string" },
+          "categoryId": { "type": "string" }
+        },
+        "required": ["title", "content"]
+      },
+      "UpdatePromptRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "description": { "type": "string" },
+          "command": { "type": "string" },
+          "categoryId": { "type": "string" }
+        }
+      },
+      "Tool": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string", "enum": ["function", "web_search", "image_generation", "code_interpreter", "retrieval"] },
+          "url": { "type": "string", "format": "uri" },
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"] },
+          "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+          "body": { "type": "object" },
+          "metadata": { "type": "object", "additionalProperties": {} },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateToolRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string" },
+          "url": { "type": "string" },
+          "method": { "type": "string" },
+          "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+          "body": { "type": "object" }
+        },
+        "required": ["name", "type"]
+      },
+      "UpdateToolRequest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string" },
+          "url": { "type": "string" },
+          "method": { "type": "string" },
+          "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+          "body": { "type": "object" }
+        },
+        "required": ["id"]
+      },
+      "Function": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string", "enum": ["filter", "pipeline", "transform"] },
+          "code": { "type": "string", "description": "Inline code or script" },
+          "args": { "type": "array", "items": { "$ref": "#/components/schemas/FunctionArg" } },
+          "return": { "$ref": "#/components/schemas/FunctionReturn" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "FunctionArg": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "required": { "type": "boolean" },
+          "description": { "type": "string" }
+        }
+      },
+      "FunctionReturn": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      },
+      "CreateFunctionRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string" },
+          "code": { "type": "string" },
+          "args": { "type": "array", "items": { "$ref": "#/components/schemas/FunctionArg" } },
+          "return": { "$ref": "#/components/schemas/FunctionReturn" }
+        },
+        "required": ["name", "type"]
+      },
+      "UpdateFunctionRequest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string" },
+          "code": { "type": "string" },
+          "args": { "type": "array", "items": { "$ref": "#/components/schemas/FunctionArg" } },
+          "return": { "$ref": "#/components/schemas/FunctionReturn" }
+        },
+        "required": ["id"]
+      },
+      "Skill": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "content": { "type": "string" },
+          "metadata": { "type": "object", "additionalProperties": {} },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateSkillRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "content": { "type": "string" },
+          "metadata": { "type": "object", "additionalProperties": {} }
+        },
+        "required": ["name", "content"]
+      },
+      "UpdateSkillRequest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "content": { "type": "string" },
+          "metadata": { "type": "object", "additionalProperties": {} }
+        },
+        "required": ["id"]
+      },
+      "Memory": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "content": { "type": "string" },
+          "userId": { "type": "string" },
+          "embedding": { "type": "array", "items": { "type": "number" }, "description": "Vector embedding" },
+          "metadata": { "type": "object", "additionalProperties": {} },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateMemoryRequest": {
+        "type": "object",
+        "properties": {
+          "content": { "type": "string" },
+          "metadata": { "type": "object", "additionalProperties": {} }
+        },
+        "required": ["content"]
+      },
+      "QueryMemoryRequest": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "topK": { "type": "integer", "default": 5 },
+          "userId": { "type": "string" }
+        },
+        "required": ["query"]
+      },
+      "Note": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "userId": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateNoteRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["title", "content"]
+      },
+      "UpdateNoteRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Channel": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string", "enum": ["public", "private"] },
+          "userId": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateChannelRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string", "enum": ["public", "private"] }
+        },
+        "required": ["name"]
+      },
+      "UpdateChannelRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      },
+      "Automation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "trigger": { "type": "object", "description": "Trigger configuration" },
+          "actions": { "type": "array", "items": { "type": "object" }, "description": "Action steps" },
+          "enabled": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateAutomationRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "trigger": { "type": "object" },
+          "actions": { "type": "array", "items": { "type": "object" } },
+          "enabled": { "type": "boolean" }
+        },
+        "required": ["name", "trigger", "actions"]
+      },
+      "UpdateAutomationRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "trigger": { "type": "object" },
+          "actions": { "type": "array", "items": { "type": "object" } },
+          "enabled": { "type": "boolean" }
+        }
+      },
+      "CalendarEvent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "allDay": { "type": "boolean" },
+          "location": { "type": "string" },
+          "recurrence": { "type": "string" },
+          "userId": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateCalendarEventRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "allDay": { "type": "boolean" },
+          "location": { "type": "string" },
+          "recurrence": { "type": "string" }
+        },
+        "required": ["title", "startTime", "endTime"]
+      },
+      "UpdateCalendarEventRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "startTime": { "type": "string", "format": "date-time" },
+          "endTime": { "type": "string", "format": "date-time" },
+          "allDay": { "type": "boolean" },
+          "location": { "type": "string" },
+          "recurrence": { "type": "string" }
+        }
+      },
+      "Folder": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "parentId": { "type": ["string", "null"] },
+          "userId": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateFolderRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "parentId": { "type": ["string", "null"] }
+        },
+        "required": ["name"]
+      },
+      "UpdateFolderRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "parentId": { "type": ["string", "null"] }
+        }
+      },
+      "PlatformModelConfig": {
+        "type": "object",
+        "properties": {
+          "ENABLE_OPENAI_API": { "type": "boolean" },
+          "ENABLE_OLLAMA_API": { "type": "boolean" },
+          "OPENAI_API_BASE_URLS": { "type": "array", "items": { "type": "string" } },
+          "OPENAI_API_KEYS": { "type": "array", "items": { "type": "string" } },
+          "OLLAMA_BASE_URLS": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ConnectionsConfig": {
+        "type": "object",
+        "properties": {
+          "connections": { "type": "array", "items": { "$ref": "#/components/schemas/Connection" } }
+        }
+      },
+      "Connection": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "provider": { "type": "string" },
+          "type": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "inactive", "error"] },
+          "config": { "type": "object", "additionalProperties": {} }
+        }
+      },
+      "CodeExecutionConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "sandbox": { "type": "boolean" },
+          "timeout": { "type": "integer" }
+        }
+      },
+      "BannersConfig": {
+        "type": "object",
+        "properties": {
+          "banners": { "type": "array", "items": { "$ref": "#/components/schemas/Banner" } }
+        }
+      },
+      "Banner": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "type": { "type": "string", "enum": ["info", "warning", "error"] },
+          "enabled": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "OpenAIModel": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string", "default": "model" },
+          "created": { "type": "integer" },
+          "owned_by": { "type": "string" }
+        }
+      },
+      "OpenAIConfig": {
+        "type": "object",
+        "properties": {
+          "apiKey": { "type": "string", "description": "OpenAI API key" },
+          "baseUrl": { "type": "string", "format": "uri" }
+        }
+      },
+      "OllamaModel": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "modified_at": { "type": "string", "format": "date-time" },
+          "size": { "type": "integer" },
+          "digest": { "type": "string" },
+          "details": { "type": "object", "additionalProperties": {} }
+        }
+      },
+      "OllamaConfig": {
+        "type": "object",
+        "properties": {
+          "baseUrl": { "type": "string", "format": "uri" }
+        }
+      },
+      "VerifyConnectionRequest": {
+        "type": "object",
+        "properties": {
+          "apiKey": { "type": "string" },
+          "baseUrl": { "type": "string", "format": "uri" }
+        }
+      }
+    }
+  }
+}

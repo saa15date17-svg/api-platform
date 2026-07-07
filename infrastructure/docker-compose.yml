@@ -1,0 +1,166 @@
+# API Platform — Master Docker Compose
+# Orchestrates all services for local development and deployment
+
+services:
+  # ─── Zitadel (Auth) ───
+  # Uses standalone stack at /home/devagent/zitadel/ on the server
+  # NOT included here — port 8080 is used by the standalone stack
+  # For local development, uncomment below and stop the standalone stack
+
+  # ─── Bifrost (AI Gateway) ───
+  # Production deployment: docker run -d -p 8082:8080 -v bifrost-data:/app/data maximhq/bifrost
+  # Included here for local development with the "full" profile
+  bifrost:
+    image: maximhq/bifrost:latest
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      - APP_PORT=8080
+      - APP_HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - LOG_STYLE=json
+      - APP_DIR=/app/data
+    volumes:
+      - bifrost-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - api-platform
+    profiles:
+      - full
+    restart: unless-stopped
+
+  # ─── OptamusUI (Chat Frontend) ───
+  optamusui:
+    build:
+      context: ../services/optamusUI
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:3000:8080"
+    environment:
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change-me-in-production}
+      - WEBUI_NAME=Optamus AI
+      - ENABLE_SIGNUP=false
+      - ENABLE_LOGIN_FORM=false
+      - ENABLE_OAUTH_SIGNUP=true
+      - OAUTH_MERGE_ACCOUNTS_BY_EMAIL=true
+      - OPENID_PROVIDER_URL=${ZITADEL_OIDC_URL:-https://auth.optamus.cloud}
+      - OAUTH_CLIENT_ID=${ZITADEL_OPENWEBUI_CLIENT_ID:-openwebui-client}
+      - OAUTH_CLIENT_SECRET=${ZITADEL_OPENWEBUI_CLIENT_SECRET}
+      - OAUTH_SCOPES=openid profile email
+      - FORWARDED_ALLOW_IPS=*
+      - CORS_ALLOW_ORIGIN=http://localhost:3000;http://localhost:3001;http://localhost:5173
+    volumes:
+      - optamusui-data:/app/backend/data
+    restart: unless-stopped
+    networks:
+      - api-platform
+    depends_on:
+      main-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    profiles:
+      - full
+
+  # ─── MainBackend (Python API Server) ───
+  main-backend:
+    build:
+      context: ../services/main-backend
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      - PORT=9000
+      - DATABASE_URL=${MAINBACKEND_DATABASE_URL:-postgresql://postgres:change-me-postgres-password@postgres:5432/api_platform?sslmode=disable}
+      - OPENAI_API_BASE_URL=http://bifrost:8080/v1
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-none}
+      - JWT_SECRET=${JWT_SECRET:-change-me-jwt-secret-min-32-chars-long}
+      - RAG_EMBEDDING_MODEL_AUTO_UPDATE=false
+      - HF_HUB_OFFLINE=1
+      - ZITADEL_DOMAIN=${ZITADEL_DOMAIN:-http://zitadel:8080}
+      - ZITADEL_OIDC_URL=${ZITADEL_OIDC_URL:-https://auth.optamus.cloud}
+      - ZITADEL_CLIENT_ID=${MAINBACKEND_ZITADEL_CLIENT_ID:-main-backend@your-project}
+      - ZITADEL_CLIENT_SECRET=${MAINBACKEND_ZITADEL_CLIENT_SECRET:-change-me}
+      - BIFROST_BASE_URL=http://bifrost:8080
+    volumes:
+      - main-backend-data:/app/data
+      - ./data/huggingface-cache:/root/.cache/huggingface:rw
+    restart: unless-stopped
+    networks:
+      - api-platform
+    depends_on:
+      postgres:
+        condition: service_healthy
+      bifrost:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - full
+
+  # ─── Admin Dashboard (Ant Design Pro) ───
+  admin-dashboard:
+    build:
+      context: ../services/admin-dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:3001:80"
+    environment:
+      - API_BASE_URL=${API_BASE_URL:-}
+      - AUTH_BASE_URL=${AUTH_BASE_URL:-https://auth.optamus.cloud}
+      - ZITADEL_CLIENT_ID=${ZITADEL_ADMIN_CLIENT_ID:-admin-dashboard@your-project}
+      - ZITADEL_CLIENT_SECRET=${ZITADEL_ADMIN_CLIENT_SECRET:-change-me}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - api-platform
+    profiles:
+      - full
+
+  # ─── PostgreSQL (Shared Database) ───
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=api_platform
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - api-platform
+
+volumes:
+  optamusui-data:
+  main-backend-data:
+  postgres-data:
+  bifrost-data:
+
+networks:
+  api-platform:
+    driver: bridge

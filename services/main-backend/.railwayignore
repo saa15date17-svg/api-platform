@@ -1,0 +1,12 @@
+venv
+.venv
+node_modules
+.git
+__pycache__
+*.pyc
+.env
+_old
+uploads
+data
+*.db
+_test

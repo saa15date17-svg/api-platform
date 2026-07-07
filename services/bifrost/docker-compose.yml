@@ -1,0 +1,32 @@
+# Bifrost — Reference Docker Compose
+# Already deployed on the server. This file documents the configuration.
+# Actual deployment: docker run -d -p 8082:8080 -v bifrost-data:/app/data maximhq/bifrost
+
+services:
+  bifrost:
+    image: maximhq/bifrost:latest
+    ports:
+      - "8082:8080"
+    environment:
+      - APP_PORT=8080
+      - APP_HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - LOG_STYLE=json
+      - APP_DIR=/app/data
+    volumes:
+      - bifrost-data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - api-platform
+
+volumes:
+  bifrost-data:
+
+networks:
+  api-platform:
+    external: true

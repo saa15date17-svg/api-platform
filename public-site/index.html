@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Optamus AI — Unified API Platform for AI Models</title>
+  <meta name="description" content="Optamus AI offers comprehensive AI API functionality spanning chat, image and video understanding, image generation, document processing, web search integration, tool utilization, and more — all through a single OpenAI-compatible API." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>⚡</text></svg>" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #000;
+      color: #f7f8fc;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+    ul { list-style: none; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* ─── Theme Variables ─── */
+    :root {
+      --brand: #7c5cfc;
+      --brand-hover: #6a46f0;
+      --brand-light: #a88aff;
+      --brand-gradient: linear-gradient(135deg, #7c5cfc, #a78bfa);
+      --bg-primary: #000;
+      --bg-secondary: #0a0a0f;
+      --bg-card: #111118;
+      --bg-card-hover: #1a1a24;
+      --border: #1e1e2e;
+      --border-light: #2a2a3e;
+      --text-primary: #f7f8fc;
+      --text-secondary: #a0a0b8;
+      --text-tertiary: #6b6b80;
+      --glow-purple: rgba(124, 92, 252, 0.15);
+      --glow-blue: rgba(59, 130, 246, 0.1);
+    }
+
+    /* ─── Header ─── */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.3s;
+    }
+    header.scrolled { background: rgba(0,0,0,0.92); }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+      padding: 0 32px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--brand-gradient);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .nav { display: flex; align-items: center; gap: 40px; }
+    .nav a {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+      position: relative;
+    }
+    .nav a:hover, .nav a.active { color: var(--text-primary); }
+    .nav a.active::after {
+      content: '';
+      position: absolute;
+      bottom: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 20px;
+      height: 2px;
+      background: var(--brand);
+      border-radius: 1px;
+    }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      font-family: inherit;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { color: var(--text-primary); border-color: var(--border-light); }
+    .btn-primary {
+      background: var(--brand);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--brand-hover); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,92,252,0.3); }
+    .btn-lg { padding: 12px 28px; font-size: 15px; border-radius: 10px; }
+
+    /* ─── Mobile Menu ─── */
+    .mobile-toggle { display: none; background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer; padding: 4px; }
+
+    /* ─── Hero ─── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 120px 24px 80px;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .hero-bg-grid {
+      position: absolute;
+      inset: -50%;
+      width: 200%;
+      height: 200%;
+      background-image:
+        linear-gradient(rgba(124,92,252,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,92,252,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, black 20%, transparent 60%);
+      -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, black 20%, transparent 60%);
+    }
+    .hero-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(124,92,252,0.12) 0%, transparent 60%);
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .hero-glow-2 {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 60%);
+      bottom: 10%;
+      right: 20%;
+      pointer-events: none;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 800px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: rgba(124,92,252,0.1);
+      border: 1px solid rgba(124,92,252,0.2);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--brand-light);
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: 64px;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #fff 40%, var(--brand-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 18px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      max-width: 640px;
+      margin: 0 auto 40px;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .hero-input-area {
+      max-width: 600px;
+      margin: 48px auto 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      text-align: left;
+      transition: border-color 0.2s;
+    }
+    .hero-input-area:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(124,92,252,0.1); }
+    .hero-input-area textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 15px;
+      font-family: inherit;
+      resize: none;
+      min-height: 24px;
+      line-height: 1.6;
+    }
+    .hero-input-area textarea::placeholder { color: var(--text-tertiary); }
+    .hero-input-submit {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      background: var(--brand);
+      border: none;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .hero-input-submit:hover { background: var(--brand-hover); transform: scale(1.05); }
+    .hero-input-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .hero-suggestions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .hero-suggestion-chip {
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .hero-suggestion-chip:hover { background: rgba(124,92,252,0.1); border-color: rgba(124,92,252,0.2); color: var(--brand-light); }
+
+    /* ─── Stats Bar ─── */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 48px;
+      padding: 40px 0 60px;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-item { text-align: center; }
+    .stat-number { font-size: 28px; font-weight: 700; background: var(--brand-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .stat-label { font-size: 13px; color: var(--text-tertiary); margin-top: 4px; }
+
+    /* ─── Sections ─── */
+    section { padding: 100px 24px; position: relative; }
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 100px;
+      background: rgba(124,92,252,0.08);
+      border: 1px solid rgba(124,92,252,0.15);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brand-light);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 16px;
+    }
+    .section-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+    .section-header { text-align: center; margin-bottom: 64px; }
+    .section-header .section-subtitle { margin: 0 auto; }
+
+    /* ─── Features Grid ─── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(124,92,252,0.3), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover { background: var(--bg-card-hover); border-color: var(--border-light); transform: translateY(-2px); }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+      background: rgba(124,92,252,0.1);
+      border: 1px solid rgba(124,92,252,0.15);
+    }
+    .feature-card h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ─── Models Section ─── */
+    .models-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .model-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .model-card:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
+    .model-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .model-badge {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .model-badge.openai { background: rgba(0, 200, 117, 0.15); color: #00c875; }
+    .model-badge.anthropic { background: rgba(217, 119, 87, 0.15); color: #d97757; }
+    .model-badge.google { background: rgba(66, 133, 244, 0.15); color: #4285f4; }
+    .model-badge.meta { background: rgba(24, 119, 242, 0.15); color: #1877f2; }
+    .model-badge.mistral { background: rgba(255, 165, 0, 0.15); color: #ffa500; }
+    .model-badge.deepseek { background: rgba(130, 71, 229, 0.15); color: #8247e5; }
+    .model-card h4 { font-size: 15px; font-weight: 600; }
+    .model-card .model-desc { font-size: 13px; color: var(--text-tertiary); line-height: 1.5; margin-bottom: 12px; }
+    .model-card .model-meta { display: flex; gap: 16px; font-size: 12px; color: var(--text-tertiary); }
+    .model-card .model-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* ─── Code Section ─── */
+    .code-section {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .code-tabs {
+      display: flex;
+      gap: 0;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+    }
+    .code-tab {
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .code-tab:hover { color: var(--text-secondary); }
+    .code-tab.active { color: var(--brand-light); border-bottom-color: var(--brand); background: rgba(124,92,252,0.05); }
+    .code-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 12px 12px;
+      padding: 24px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #e2e2f0;
+    }
+    .code-block .comment { color: #6b6b80; }
+    .code-block .keyword { color: #a78bfa; }
+    .code-block .string { color: #86efac; }
+    .code-block .function { color: #60a5fa; }
+    .code-block .number { color: #f472b6; }
+
+    /* ─── CTA Section ─── */
+    .cta-section {
+      text-align: center;
+      padding: 120px 24px;
+      background: radial-gradient(ellipse at 50% 100%, rgba(124,92,252,0.08) 0%, transparent 60%);
+    }
+    .cta-section h2 { font-size: 42px; font-weight: 700; margin-bottom: 20px; }
+    .cta-section p { font-size: 17px; color: var(--text-secondary); max-width: 500px; margin: 0 auto 32px; }
+    .cta-actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+    /* ─── Footer ─── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 60px 24px 40px;
+    }
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 48px;
+    }
+    .footer-brand p {
+      font-size: 14px;
+      color: var(--text-tertiary);
+      margin-top: 16px;
+      max-width: 300px;
+      line-height: 1.7;
+    }
+    .footer-social { display: flex; gap: 12px; margin-top: 20px; }
+    .footer-social a {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+    .footer-social a:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
+    .footer-col h4 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); margin-bottom: 16px; }
+    .footer-col a {
+      display: block;
+      font-size: 14px;
+      color: var(--text-secondary);
+      padding: 4px 0;
+      transition: color 0.2s;
+    }
+    .footer-col a:hover { color: var(--text-primary); }
+    .footer-bottom {
+      max-width: 1100px;
+      margin: 48px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-tertiary);
+    }
+
+    /* ─── Animations ─── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 768px) {
+      .header-inner { padding: 0 16px; }
+      .nav { display: none; }
+      .mobile-toggle { display: block; }
+      .hero h1 { font-size: 36px; }
+      .hero p { font-size: 16px; }
+      .stats-bar { gap: 24px; flex-wrap: wrap; }
+      .stat-number { font-size: 22px; }
+      .section-title { font-size: 28px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .models-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
+      .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+      .cta-section h2 { font-size: 30px; }
+      .code-tabs { overflow-x: auto; }
+      .code-tab { padding: 10px 16px; font-size: 12px; white-space: nowrap; }
+    }
+    @media (max-width: 480px) {
+      .hero h1 { font-size: 28px; }
+      .hero-input-area { padding: 12px 16px; }
+      .header-actions .btn-ghost { display: none; }
+      .footer-inner { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Mobile nav ─── */
+    .mobile-nav {
+      display: none;
+      position: fixed;
+      top: 72px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.95);
+      backdrop-filter: blur(24px);
+      z-index: 99;
+      padding: 32px 24px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mobile-nav.open { display: flex; }
+    .mobile-nav a {
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .mobile-nav a:hover { background: var(--bg-card); color: var(--text-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Header ═══ -->
+  <header id="header">
+    <div class="header-inner">
+      <a href="#" class="logo">
+        <div class="logo-icon">O</div>
+        <span>Optamus AI</span>
+      </a>
+      <nav class="nav">
+        <a href="#features" class="active">API Platform</a>
+        <a href="#models">Models</a>
+        <a href="#sdk">SDKs</a>
+        <a href="https://docs.optamus.cloud" target="_blank">Docs</a>
+        <a href="#pricing">Pricing</a>
+      </nav>
+      <div class="header-actions">
+        <a href="/api/v1/auths/signin" class="btn btn-ghost">Sign In</a>
+        <a href="/api/v1/auths/signup" class="btn btn-primary">Get Started</a>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Nav -->
+  <div class="mobile-nav" id="mobileNav">
+    <a href="#features">API Platform</a>
+    <a href="#models">Models</a>
+    <a href="#sdk">SDKs</a>
+    <a href="https://docs.optamus.cloud" target="_blank">Docs</a>
+    <a href="#pricing">Pricing</a>
+    <a href="/api/v1/auths/signin">Sign In</a>
+    <a href="/api/v1/auths/signup" style="color: var(--brand-light);">Get Started</a>
+  </div>
+
+  <!-- ═══ Hero ═══ -->
+  <section class="hero">
+    <div class="hero-bg">
+      <div class="hero-bg-grid"></div>
+      <div class="hero-glow"></div>
+      <div class="hero-glow-2"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span>⚡</span>
+        One API, Every Model
+      </div>
+      <h1>Build with the<br/>best AI models</h1>
+      <p>
+        A single OpenAI-compatible API to access 200+ models from OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, and more. Pay only for what you use.
+      </p>
+      <div class="hero-actions">
+        <a href="/api/v1/auths/signup" class="btn btn-primary btn-lg">Start Building Free →</a>
+        <a href="https://docs.optamus.cloud" target="_blank" class="btn btn-ghost btn-lg">Read the Docs</a>
+      </div>
+      <div class="hero-input-area">
+        <textarea placeholder="Quick API test — type a message to any model..." rows="1"></textarea>
+        <button class="hero-input-submit" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="hero-suggestions">
+        <span class="hero-suggestion-chip">Chat completions</span>
+        <span class="hero-suggestion-chip">Vision analysis</span>
+        <span class="hero-suggestion-chip">Code generation</span>
+        <span class="hero-suggestion-chip">Image generation</span>
+        <span class="hero-suggestion-chip">Web search</span>
+        <span class="hero-suggestion-chip">Tool calling</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Stats ═══ -->
+  <div class="container">
+    <div class="stats-bar fade-in">
+      <div class="stat-item">
+        <div class="stat-number">200+</div>
+        <div class="stat-label">AI Models</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">99.9%</div>
+        <div class="stat-label">Uptime</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">10+</div>
+        <div class="stat-label">Providers</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">1</div>
+        <div class="stat-label">Unified API</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Features ═══ -->
+  <section id="features">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">API Platform</div>
+        <h2 class="section-title">Everything you need to ship AI</h2>
+        <p class="section-subtitle">One OpenAI-compatible endpoint for chat, vision, embeddings, image generation, fine-tuning, and more.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card fade-in">
+          <div class="feature-icon">💬</div>
+          <h3>Chat Completions</h3>
+          <p>Full OpenAI-compatible chat completions API. Streaming, function calling, JSON mode, and structured outputs supported across all models.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">👁️</div>
+          <h3>Vision & Multimodal</h3>
+          <p>Analyze images, documents, and video frames. Models like GPT-4o, Claude 3.5, Gemini 2.0 with native multimodal understanding.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🎨</div>
+          <h3>Image Generation</h3>
+          <p>Generate and edit images with DALL-E, Flux, Stable Diffusion, and other image models through a single API interface.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🔧</div>
+          <h3>Tool Calling & Agents</h3>
+          <p>Define custom tools, functions, and agents. Models automatically decide when to call tools, return structured results.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🌐</div>
+          <h3>Web Search</h3>
+          <p>Built-in web search augmentation. Models can retrieve real-time information from the web to ground their responses.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">📄</div>
+          <h3>Document Processing</h3>
+          <p>Parse and analyze PDFs, spreadsheets, code files, and more. Extract structured data with vision-enabled models.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">⚡</div>
+          <h3>Streaming & Batch</h3>
+          <p>Real-time SSE streaming for low-latency chat. Batch API for async processing of large workloads at reduced costs.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🔐</div>
+          <h3>Enterprise Security</h3>
+          <p>API key management, rate limiting, spending controls, audit logs, and SOC 2 compliance. Enterprise SLAs available.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Models ═══ -->
+  <section id="models">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">Model Catalog</div>
+        <h2 class="section-title">200+ models at your fingertips</h2>
+        <p class="section-subtitle">Access the latest frontier models, open-source LLMs, and specialized models — all through one API.</p>
+      </div>
+      <div class="models-grid">
+        <div class="model-card fade-in">
+          <div class="model-card-top">
+            <h4>GPT-4o</h4>
+            <span class="model-badge openai">OpenAI</span>
+          </div>
+          <p class="model-desc">Multimodal frontier model with vision, function calling, and 128K context.</p>
+          <div class="model-meta">
+            <span>🧠 128K context</span>
+            <span>⚡ Streaming</span>
+          </div>
+        </div>
+        <div class="model-card fade-in">
+          <div class="model-card-top">
+            <h4>Claude 3.5 Sonnet</h4>
+            <span class="model-badge anthropic">Anthropic</span>
+          </div>
+          <p class="model-desc">Best-in-class coding and reasoning. Excels at agentic tasks and tool use.</p>
+          <div class="model-meta">
+            <span>🧠 200K context</span>
+            <span>⚡ Streaming</span>
+          </div>
+        </div>
+        <div class="model-card fade-in">
+          <div class="model-card-top">
+            <h4>Gemini 2.0 Flash</h4>
+            <span class="model-badge google">Google</span>
+          </div>
+          <p class="model-desc">Fast, efficient multimodal model with native image and audio understanding.</p>
+          <div class="model-meta">
+            <span>🧠 1M context</span>
+            <span>⚡ Streaming</span>
+          </div>
+        </div>
+        <div class="model-card fade-in">
+          <div class="model-card-top">
+            <h4>Llama 3.3 70B</h4>
+            <span class="model-badge meta">Meta</span>
+          </div>
+          <p class="model-desc">Top open-source model. Powerful general reasoning and instruction following.</p>
+          <div class="model-meta">
+            <span>🧠 128K context</span>
+            <span>⚡ Streaming</span>
+          </div>
+        </div>
+        <div class="model-card fade-in">
+          <div class="model-card-top">
+            <h4>Mistral Large</h4>
+            <span class="model-badge mistral">Mistral</span>
+          </div>
+          <p class="model-desc">Flagship model optimized for multilingual tasks and code generation.</p>
+          <div class="model-meta">
+            <span>🧠 128K context</span>
+            <span>⚡ Streaming</span>
+          </div>
+        </div>
+        <div class="model-card fade-in">
+          <div class="model-card-top">
+            <h4>DeepSeek V3</h4>
+            <span class="model-badge deepseek">DeepSeek</span>
+          </div>
+          <p class="model-desc">Cost-efficient reasoning model with competitive performance on coding and math.</p>
+          <div class="model-meta">
+            <span>🧠 128K context</span>
+            <span>⚡ Streaming</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SDK & Code Examples ═══ -->
+  <section id="sdk">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">SDKs & Code</div>
+        <h2 class="section-title">Works with your existing code</h2>
+        <p class="section-subtitle">Drop-in replacement for OpenAI SDKs. Change the base URL and you're done.</p>
+      </div>
+      <div class="code-section fade-in">
+        <div class="code-tabs">
+          <span class="code-tab active" data-lang="python">Python</span>
+          <span class="code-tab" data-lang="javascript">JavaScript</span>
+          <span class="code-tab" data-lang="curl">cURL</span>
+        </div>
+        <div class="code-block" id="codeBlock">
+          <pre><code><span class="comment"># pip install openai</span>
+<span class="keyword">from</span> openai <span class="keyword">import</span> OpenAI
+
+client = OpenAI(
+    api_key=<span class="string">"op-your-api-key"</span>,
+    base_url=<span class="string">"https://api.optamus.cloud/v1"</span>
+)
+
+response = client.chat.completions.create(
+    model=<span class="string">"gpt-4o"</span>,
+    messages=[
+        {<span class="string">"role"</span>: <span class="string">"system"</span>, <span class="string">"content"</span>: <span class="string">"You are a helpful assistant."</span>},
+        {<span class="string">"role"</span>: <span class="string">"user"</span>, <span class="string">"content"</span>: <span class="string">"What is the capital of France?"</span>}
+    ],
+    stream=<span class="keyword">True</span>
+)
+
+<span class="keyword">for</span> chunk <span class="keyword">in</span> response:
+    <span class="keyword">print</span>(chunk.choices[<span class="number">0</span>].delta.content, end=<span class="string">""</span>)</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Pricing ═══ -->
+  <section id="pricing">
+    <div class="container">
+      <div class="section-header fade-in">
+        <div class="section-label">Pricing</div>
+        <h2 class="section-title">Simple, transparent pricing</h2>
+        <p class="section-subtitle">Pay per token. No hidden fees, no minimum commitments. Scale up or down anytime.</p>
+      </div>
+      <div class="features-grid" style="max-width: 900px;">
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🚀</div>
+          <h3>Free Tier</h3>
+          <p style="font-size: 32px; font-weight: 700; margin: 12px 0; color: var(--text-primary);">$0</p>
+          <p style="font-size: 13px;">Get started with $5 in free credits. Access to all models. Community support.</p>
+        </div>
+        <div class="feature-card fade-in" style="border-color: rgba(124,92,252,0.3);">
+          <div class="feature-icon" style="background: var(--brand); border-color: var(--brand);">⭐</div>
+          <h3>Pay As You Go</h3>
+          <p style="font-size: 32px; font-weight: 700; margin: 12px 0; color: var(--text-primary);">Pay per token</p>
+          <p style="font-size: 13px;">Only pay for what you use. No monthly commitments. Discounted batch pricing available.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🏢</div>
+          <h3>Enterprise</h3>
+          <p style="font-size: 32px; font-weight: 700; margin: 12px 0; color: var(--text-primary);">Custom</p>
+          <p style="font-size: 13px;">Dedicated infrastructure, custom contracts, SLA guarantees, and priority support.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CTA ═══ -->
+  <section class="cta-section">
+    <div class="container">
+      <h2 class="fade-in">Start building with Optamus AI</h2>
+      <p class="fade-in">Get your free API key and start shipping AI features in minutes. No credit card required.</p>
+      <div class="cta-actions fade-in">
+        <a href="/api/v1/auths/signup" class="btn btn-primary btn-lg">Get Your Free API Key →</a>
+        <a href="https://docs.optamus.cloud" target="_blank" class="btn btn-ghost btn-lg">View Documentation</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Footer ═══ -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a href="#" class="logo">
+          <div class="logo-icon">O</div>
+          <span>Optamus AI</span>
+        </a>
+        <p>The unified API platform for AI models. Access 200+ models from every major provider through a single OpenAI-compatible endpoint.</p>
+        <div class="footer-social">
+          <a href="https://github.com/optamus-ai" target="_blank" aria-label="GitHub">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
+          <a href="https://twitter.com/OptamusAI" target="_blank" aria-label="Twitter">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a href="https://discord.gg/optamus" target="_blank" aria-label="Discord">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>
+          </a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#features">API</a>
+        <a href="#models">Models</a>
+        <a href="#pricing">Pricing</a>
+        <a href="https://status.optamus.cloud" target="_blank">Status</a>
+      </div>
+      <div class="footer-col">
+        <h4>Developers</h4>
+        <a href="https://docs.optamus.cloud" target="_blank">Documentation</a>
+        <a href="https://docs.optamus.cloud/getting-started" target="_blank">Quickstart</a>
+        <a href="https://github.com/optamus-ai" target="_blank">GitHub</a>
+        <a href="https://optamus.cloud/api-spec/openapi.json" target="_blank">API Reference</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="https://optamus.cloud/blog" target="_blank">Blog</a>
+        <a href="https://optamus.cloud/about" target="_blank">About</a>
+        <a href="mailto:hello@optamus.cloud">Contact</a>
+        <a href="https://optamus.cloud/privacy" target="_blank">Privacy Policy</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Optamus AI Inc. All rights reserved.</span>
+      <span>
+        <a href="https://optamus.cloud/privacy" style="color: inherit;">Privacy</a>
+        &nbsp;·&nbsp;
+        <a href="https://optamus.cloud/terms" style="color: inherit;">Terms</a>
+      </span>
+    </div>
+  </footer>
+
+  <script>
+    // ─── Scroll header ───
+    const header = document.getElementById('header');
+    window.addEventListener('scroll', () => {
+      header.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    // ─── Fade-in on scroll ───
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // ─── Mobile menu ───
+    const mobileToggle = document.getElementById('mobileToggle');
+    const mobileNav = document.getElementById('mobileNav');
+    mobileToggle.addEventListener('click', () => {
+      mobileNav.classList.toggle('open');
+    });
+    mobileNav.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => mobileNav.classList.remove('open'));
+    });
+
+    // ─── Code tabs ───
+    const codeSnippets = {
+      python: `<span class="comment"># pip install openai</span>
+<span class="keyword">from</span> openai <span class="keyword">import</span> OpenAI
+
+client = OpenAI(
+    api_key=<span class="string">"op-your-api-key"</span>,
+    base_url=<span class="string">"https://api.optamus.cloud/v1"</span>
+)
+
+response = client.chat.completions.create(
+    model=<span class="string">"gpt-4o"</span>,
+    messages=[
+        {<span class="string">"role"</span>: <span class="string">"system"</span>, <span class="string">"content"</span>: <span class="string">"You are a helpful assistant."</span>},
+        {<span class="string">"role"</span>: <span class="string">"user"</span>, <span class="string">"content"</span>: <span class="string">"What is the capital of France?"</span>}
+    ],
+    stream=<span class="keyword">True</span>
+)
+
+<span class="keyword">for</span> chunk <span class="keyword">in</span> response:
+    <span class="keyword">print</span>(chunk.choices[<span class="number">0</span>].delta.content, end=<span class="string">""</span>)`,
+      javascript: `<span class="comment">// npm install openai</span>
+<span class="keyword">import</span> OpenAI <span class="keyword">from</span> <span class="string">"openai"</span>;
+
+<span class="keyword">const</span> client = <span class="keyword">new</span> OpenAI({
+  apiKey: <span class="string">"op-your-api-key"</span>,
+  baseURL: <span class="string">"https://api.optamus.cloud/v1"</span>,
+});
+
+<span class="keyword">const</span> stream = <span class="keyword">await</span> client.chat.completions.create({
+  model: <span class="string">"gpt-4o"</span>,
+  messages: [
+    { role: <span class="string">"system"</span>, content: <span class="string">"You are a helpful assistant."</span> },
+    { role: <span class="string">"user"</span>, content: <span class="string">"What is the capital of France?"</span> },
+  ],
+  stream: <span class="keyword">true</span>,
+});
+
+<span class="keyword">for await</span> (<span class="keyword">const</span> chunk <span class="keyword">of</span> stream) {
+  process.stdout.write(chunk.choices[<span class="number">0</span>]?.delta?.content || <span class="string">""</span>);
+}`,
+      curl: `<span class="comment"># Just change the base URL</span>
+curl https://api.optamus.cloud/v1/chat/completions \\
+  -H <span class="string">"Authorization: Bearer op-your-api-key"</span> \\
+  -H <span class="string">"Content-Type: application/json"</span> \\
+  -d <span class="string">'{
+    "model": "gpt-4o",
+    "messages": [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "What is the capital of France?"}
+    ],
+    "stream": true
+  }'</span>`
+    };
+
+    document.querySelectorAll('.code-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const lang = tab.dataset.lang;
+        document.getElementById('codeBlock').innerHTML = `<pre><code>${codeSnippets[lang]}</code></pre>`;
+      });
+    });
+
+    // ─── Hero textarea auto-resize ───
+    document.querySelector('.hero-input-area textarea').addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = this.scrollHeight + 'px';
+    });
+  </script>
+</body>
+</html>

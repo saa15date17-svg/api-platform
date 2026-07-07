@@ -1,0 +1,39 @@
+# API Platform — Cloudflare Tunnel Config
+# Deploy to server at /home/devagent/.cloudflared/config.yml
+tunnel: a0fdf333-61d2-4b92-be58-82b663e78028
+credentials-file: /home/devagent/.cloudflared/a0fdf333-61d2-4b92-be58-82b663e78028.json
+
+ingress:
+  # User-facing chat UI
+  - hostname: app.optamus.cloud
+    service: http://127.0.0.1:8081
+    originRequest:
+      noTLSVerify: true
+
+  # Admin dashboard
+  - hostname: admin.optamus.cloud
+    service: http://127.0.0.1:8081
+    originRequest:
+      noTLSVerify: true
+
+  # Developer API + MainBackend
+  - hostname: api.optamus.cloud
+    service: http://127.0.0.1:8081
+    originRequest:
+      noTLSVerify: true
+
+  # Zitadel OIDC auth
+  - hostname: auth.optamus.cloud
+    service: http://127.0.0.1:8081
+    originRequest:
+      noTLSVerify: true
+
+  # Existing service (unchanged)
+  - hostname: optamus.cloud
+    service: http://127.0.0.1:3021
+
+  - hostname: www.optamus.cloud
+    service: http://127.0.0.1:3021
+
+  # Fallback
+  - service: http_status:404
