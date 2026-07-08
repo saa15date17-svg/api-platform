@@ -66,6 +66,22 @@ export const getBaseModelTags = async (token: string = '') => {
 	return res;
 };
 
+export const getModelById = async (token: string = '', id: string) => {
+	const res = await fetch(`${WEBUI_API_BASE_URL}/models/${id}`, {
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+			...(token && { authorization: `Bearer ${token}` })
+		}
+	}).then(async (res) => {
+		if (!res.ok) throw await res.json();
+		return res.json();
+	});
+
+	return res;
+};
+
 export const toggleModelById = async (token: string = '', id: string) => {
 	const res = await fetch(`${WEBUI_API_BASE_URL}/models/toggle`, {
 		method: 'POST',
