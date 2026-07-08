@@ -16,7 +16,7 @@
 	import {
 		createNewModel,
 		deleteModelById,
-		getModelItems as getWorkspaceModels,
+		getModels as getWorkspaceModels,
 		getModelTags,
 		toggleModelById,
 		updateModelById
