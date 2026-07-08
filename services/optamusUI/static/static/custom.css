@@ -1,0 +1,5 @@
+/* Optamus AI — Custom Branding Overrides */
+:root {
+  --brand-primary: #6366f1;
+  --brand-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+}

@@ -1,0 +1,32 @@
+# Optamus AI — Branding Overlay
+FROM ghcr.io/open-webui/open-webui:main
+
+# Remove heavy ML deps, patch branding, set env vars
+RUN pip uninstall -y sentence-transformers transformers accelerate 2>/dev/null; \
+    rm -rf /root/.cache/huggingface /root/.cache/torch 2>/dev/null; \
+    python3 << 'PYEOF'
+with open('/app/backend/open_webui/env.py', 'r') as f:
+    lines = f.readlines()
+with open('/app/backend/open_webui/env.py', 'w') as f:
+    skip_next = False
+    for line in lines:
+        if "WEBUI_NAME += ' (Open WebUI)'" in line:
+            f.write("# " + line)
+        elif line.strip().startswith("if WEBUI_NAME != 'Open WebUI'") and "Optamus" not in line:
+            f.write("# " + line)
+        else:
+            f.write(line)
+print("Backend branding patch applied")
+PYEOF
+
+# Frontend branding is patched in source (.svelte/.ts/.js files).
+# If rebuilding from a fresh upstream image, uncomment the block below
+# to replace hardcoded "Open WebUI" strings in the built frontend bundle.
+# RUN find /app/build -type f \( -name '*.js' -o -name '*.html' \) -exec \
+#     sed -i 's/Open WebUI/Optamus AI/g' {} +
+
+ENV WEBUI_NAME="Optamus AI"
+ENV WEBUI_FAVICON_URL="/static/favicon.svg"
+ENV ANONYMIZED_TELEMETRY="false"
+ENV SCARF_NO_ANALYTICS="true"
+ENV DO_NOT_TRACK="true"
