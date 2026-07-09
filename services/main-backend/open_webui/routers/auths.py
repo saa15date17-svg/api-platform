@@ -661,17 +661,23 @@ async def zitadel_callback(
 ):
     """Accept a Zitadel id_token or access_token from the frontend OIDC flow
     and exchange it for a local session JWT."""
-    token = form_data.id_token or form_data.access_token
+    # Prefer access_token (it's a standard JWT Bearer token for userinfo).
+    # id_token from ZITADEL is often encrypted (JWE) and can't be decoded directly.
+    token = form_data.access_token or form_data.id_token
     if not token:
         raise HTTPException(400, detail='No token provided')
 
     # Validate the token by calling Zitadel's userinfo endpoint
     userinfo = await _zitadel_userinfo(token)
+    if userinfo is None and form_data.id_token:
+        # Try the id_token with userinfo as fallback
+        userinfo = await _zitadel_userinfo(form_data.id_token)
     if userinfo is None:
-        # Try using the id_token directly (decode without verification for user info)
+        # Last resort: try decoding id_token directly (only works for JWS, not JWE)
         try:
             import base64, json
-            parts = token.split('.')
+            raw = form_data.id_token or token
+            parts = raw.split('.')
             if len(parts) == 3:
                 payload = parts[1]
                 payload += '=' * (4 - len(payload) % 4)
