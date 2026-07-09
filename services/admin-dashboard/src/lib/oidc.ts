@@ -14,6 +14,7 @@ export const oidcConfig = {
   scope: 'openid profile email offline_access',
   automaticSilentRenew: false,
   includeIdTokenInSilentRenew: false,
+  monitorSession: false,
 };
 
 export const userManager = new UserManager(oidcConfig);
