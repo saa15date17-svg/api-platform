@@ -158,6 +158,10 @@ def _zitadel_userinfo_url(issuer: str) -> str:
     return f"{issuer.rstrip('/')}/oidc/v1/userinfo"
 
 
+def _zitadel_introspect_url(issuer: str) -> str:
+    return f"{issuer.rstrip('/')}/oauth/v2/introspect"
+
+
 def _zitadel_management_url(issuer: str, path: str) -> str:
     return f"{issuer.rstrip('/')}/management/v1{path}"
 
@@ -214,6 +218,33 @@ async def _zitadel_userinfo(access_token: str) -> dict | None:
                 return await resp.json() if resp.status == 200 else None
     except Exception as exc:
         log.error('Zitadel userinfo error: %s', exc)
+        return None
+
+
+async def _zitadel_introspect(access_token: str) -> dict | None:
+    """Validate a token via Zitadel's introspection endpoint.
+
+    Works with any token type (opaque, JWE, JWS) unlike userinfo which
+    only accepts standard Bearer tokens.
+    """
+    issuer = await _get_zitadel_issuer()
+    client_id = await Config.get('oauth.client_id')
+    if not issuer or not client_id:
+        return None
+    try:
+        async with ClientSession(trust_env=True) as session:
+            async with session.post(
+                _zitadel_introspect_url(issuer),
+                data={'token': access_token, 'client_id': client_id},
+                ssl=AIOHTTP_CLIENT_SESSION_SSL,
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get('active'):
+                        return data
+                return None
+    except Exception as exc:
+        log.error('Zitadel introspect error: %s', exc)
         return None
 
 
@@ -661,29 +692,20 @@ async def zitadel_callback(
 ):
     """Accept a Zitadel id_token or access_token from the frontend OIDC flow
     and exchange it for a local session JWT."""
-    # Prefer access_token (it's a standard JWT Bearer token for userinfo).
-    # id_token from ZITADEL is often encrypted (JWE) and can't be decoded directly.
+    # Prefer access_token — use introspection (works with JWE/opaque tokens).
     token = form_data.access_token or form_data.id_token
     if not token:
         raise HTTPException(400, detail='No token provided')
 
-    # Validate the token by calling Zitadel's userinfo endpoint
-    userinfo = await _zitadel_userinfo(token)
+    # Validate via introspection (works with any token type: JWE, JWS, opaque)
+    userinfo = await _zitadel_introspect(token)
     if userinfo is None and form_data.id_token:
-        # Try the id_token with userinfo as fallback
-        userinfo = await _zitadel_userinfo(form_data.id_token)
+        userinfo = await _zitadel_introspect(form_data.id_token)
     if userinfo is None:
-        # Last resort: try decoding id_token directly (only works for JWS, not JWE)
-        try:
-            import base64, json
-            raw = form_data.id_token or token
-            parts = raw.split('.')
-            if len(parts) == 3:
-                payload = parts[1]
-                payload += '=' * (4 - len(payload) % 4)
-                userinfo = json.loads(base64.urlsafe_b64decode(payload))
-        except Exception:
-            pass
+        # Fallback: try userinfo endpoint (works for non-encrypted tokens)
+        userinfo = await _zitadel_userinfo(token)
+    if userinfo is None and form_data.id_token:
+        userinfo = await _zitadel_userinfo(form_data.id_token)
 
     if userinfo is None:
         raise HTTPException(401, detail='Invalid ZITADEL token')
