@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { signInCallback } from '../lib/oidc';
 
 interface User {
   id: string;
@@ -26,6 +27,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check if this is an OIDC callback (has code and state in URL)
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    
+    if (code && state) {
+      // This is an OIDC callback - handle it
+      signInCallback()
+        .then((user) => {
+          if (user && user.id_token) {
+            localStorage.setItem('token', user.id_token);
+            setUser({
+              id: user.profile.sub,
+              email: user.profile.email || '',
+              name: user.profile.name || user.profile.email || '',
+              role: 'admin',
+              is_active: true,
+              created_at: user.profile.iat || Date.now() / 1000,
+            });
+          }
+          // Clean up URL
+          window.history.replaceState({}, '', window.location.pathname);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error('OIDC callback error:', err);
+          setLoading(false);
+        });
+      return;
+    }
+
     const token = localStorage.getItem('token');
     if (token) {
       try {
