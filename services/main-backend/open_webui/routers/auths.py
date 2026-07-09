@@ -643,6 +643,60 @@ async def signin(
 
 
 ############################
+# ZITADEL OIDC Token Exchange
+############################
+
+
+class ZitadelCallbackForm(BaseModel):
+    id_token: str | None = None
+    access_token: str | None = None
+
+
+@router.post('/zitadel/callback', response_model=SessionUserResponse)
+async def zitadel_callback(
+    request: Request,
+    response: Response,
+    form_data: ZitadelCallbackForm,
+    db: AsyncSession = Depends(get_async_session),
+):
+    """Accept a Zitadel id_token or access_token from the frontend OIDC flow
+    and exchange it for a local session JWT."""
+    token = form_data.id_token or form_data.access_token
+    if not token:
+        raise HTTPException(400, detail='No token provided')
+
+    # Validate the token by calling Zitadel's userinfo endpoint
+    userinfo = await _zitadel_userinfo(token)
+    if userinfo is None:
+        # Try using the id_token directly (decode without verification for user info)
+        try:
+            import base64, json
+            parts = token.split('.')
+            if len(parts) == 3:
+                payload = parts[1]
+                payload += '=' * (4 - len(payload) % 4)
+                userinfo = json.loads(base64.urlsafe_b64decode(payload))
+        except Exception:
+            pass
+
+    if userinfo is None:
+        raise HTTPException(401, detail='Invalid ZITADEL token')
+
+    email = userinfo.get('email', '').lower()
+    name = userinfo.get('name', userinfo.get('preferred_username', email))
+    zitadel_roles = userinfo.get('urn:zitadel:iam:org:project:roles', {})
+
+    if not email:
+        raise HTTPException(400, detail='No email in ZITADEL token')
+
+    user = await _find_or_create_user_from_zitadel(
+        request, email, name, db=db, source='oidc', zitadel_roles=zitadel_roles
+    )
+
+    return await create_session_response(request, user, db, response, set_cookie=True, source='oidc')
+
+
+############################
 # SignOut  (-> Zitadel end_session_endpoint)
 ############################
 

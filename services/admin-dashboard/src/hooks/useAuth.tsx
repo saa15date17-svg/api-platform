@@ -33,18 +33,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const state = params.get('state');
     
     if (code && state) {
-      // This is an OIDC callback - handle it
+      // This is an OIDC callback - exchange the ZITADEL token for a main-backend JWT
       signInCallback()
-        .then((user) => {
-          if (user && user.id_token) {
-            localStorage.setItem('token', user.id_token);
+        .then(async (user) => {
+          if (user && (user.id_token || user.access_token)) {
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+            const tokenToSend = user.id_token || user.access_token;
+            const resp = await fetch(`${API_BASE}/api/v1/auths/zitadel/callback`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id_token: user.id_token, access_token: user.access_token }),
+            });
+            if (!resp.ok) {
+              const err = await resp.json().catch(() => ({ detail: 'Token exchange failed' }));
+              throw new Error(err.detail || `HTTP ${resp.status}`);
+            }
+            const data = await resp.json();
+            localStorage.setItem('token', data.token);
             setUser({
-              id: user.profile.sub,
-              email: user.profile.email || '',
-              name: user.profile.name || user.profile.email || '',
-              role: 'admin',
+              id: data.id,
+              email: data.email,
+              name: data.name,
+              role: data.role,
               is_active: true,
-              created_at: user.profile.iat || Date.now() / 1000,
+              created_at: Date.now() / 1000,
             });
           }
           // Clean up URL
@@ -65,16 +77,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (payload.exp * 1000 >= Date.now()) {
           // Check if this is a ZITADEL token (has azp claim) or a main-backend token
           if (payload.azp || payload.iss?.includes('zitadel')) {
-            // ZITADEL token - decode user info from JWT
-            setUser({
-              id: payload.sub,
-              email: payload.email || payload.preferred_username || '',
-              name: payload.name || payload.email || '',
-              role: 'admin',
-              is_active: true,
-              created_at: payload.iat || Date.now() / 1000,
-            });
-            setLoading(false);
+            // ZITADEL token detected - exchange it for a main-backend JWT
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+            fetch(`${API_BASE}/api/v1/auths/zitadel/callback`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id_token: token }),
+            })
+              .then(async (resp) => {
+                if (!resp.ok) throw new Error('Token exchange failed');
+                const data = await resp.json();
+                localStorage.setItem('token', data.token);
+                setUser({
+                  id: data.id,
+                  email: data.email,
+                  name: data.name,
+                  role: data.role,
+                  is_active: true,
+                  created_at: Date.now() / 1000,
+                });
+              })
+              .catch(() => {
+                localStorage.removeItem('token');
+                setUser(null);
+              })
+              .finally(() => setLoading(false));
+            return;
           } else {
             // Main-backend token - fetch user data
             fetchCurrentUser(token).finally(() => setLoading(false));
