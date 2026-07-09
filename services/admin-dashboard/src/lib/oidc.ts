@@ -2,7 +2,7 @@ import { UserManager, User } from 'oidc-client-ts';
 
 const ZITADEL_ISSUER = import.meta.env.VITE_ZITADEL_ISSUER || '';
 const ZITADEL_CLIENT_ID = import.meta.env.VITE_ZITADEL_CLIENT_ID || '';
-const REDIRECT_URI = import.meta.env.VITE_ZITADEL_REDIRECT_URI || window.location.origin;
+const REDIRECT_URI = import.meta.env.VITE_ZITADEL_REDIRECT_URI || `${window.location.origin}/auth/callback`;
 const POST_LOGOUT_URI = import.meta.env.VITE_ZITADEL_POST_LOGOUT_URI || window.location.origin;
 
 export const oidcConfig = {
