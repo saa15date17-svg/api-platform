@@ -11,6 +11,10 @@ export default defineConfig({
   ],
   define: {
     'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || ''),
+    'import.meta.env.VITE_ZITADEL_ISSUER': JSON.stringify(process.env.VITE_ZITADEL_ISSUER || ''),
+    'import.meta.env.VITE_ZITADEL_CLIENT_ID': JSON.stringify(process.env.VITE_ZITADEL_CLIENT_ID || ''),
+    'import.meta.env.VITE_ZITADEL_REDIRECT_URI': JSON.stringify(process.env.VITE_ZITADEL_REDIRECT_URI || ''),
+    'import.meta.env.VITE_ZITADEL_POST_LOGOUT_URI': JSON.stringify(process.env.VITE_ZITADEL_POST_LOGOUT_URI || ''),
   },
   worker: {
     format: 'es',
