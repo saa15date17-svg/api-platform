@@ -4,6 +4,7 @@ import { AppLayout } from './components/AppLayout';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ErrorBoundary } from './components';
 import Login from './pages/Login';
+import Callback from './pages/Login/Callback';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Users = lazy(() => import('./pages/Users'));
@@ -61,6 +62,7 @@ const AppRoutes: React.FC = () => {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<Callback />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -69,6 +71,7 @@ const AppRoutes: React.FC = () => {
   return (
     <AppLayout>
       <Routes>
+        <Route path="/auth/callback" element={<Callback />} />
         <Route path="/dashboard" element={
           <Suspense fallback={<PageFallback />}>
             <Dashboard />

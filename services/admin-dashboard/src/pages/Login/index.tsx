@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { Form, Input, Button, Card, message, Typography, Alert } from 'antd';
+import { Form, Input, Button, Card, message, Typography, Alert, Divider } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { signInRedirect } from '../../lib/oidc';
 
 interface LoginResponse {
   token: string;
@@ -17,6 +18,18 @@ const Login: React.FC = () => {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const hasZitadel = !!(import.meta.env.VITE_ZITADEL_ISSUER && import.meta.env.VITE_ZITADEL_CLIENT_ID);
+
+  const handleZitadelLogin = async () => {
+    try {
+      await signInRedirect();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'ZITADEL login failed';
+      setError(msg);
+      message.error(msg);
+    }
+  };
 
   const onFinish = async (values: { email: string; password: string }) => {
     try {
@@ -33,7 +46,6 @@ const Login: React.FC = () => {
         throw new Error(err.detail || `HTTP ${resp.status}`);
       }
       const data: LoginResponse = await resp.json();
-      // Update auth context with token + full user data from the response
       login(data.token, {
         id: data.id,
         name: data.name,
@@ -72,6 +84,31 @@ const Login: React.FC = () => {
         </div>
 
         {error && <Alert message={error} type="error" showIcon style={{ marginBottom: 16, borderRadius: 8 }} />}
+
+        {hasZitadel && (
+          <>
+            <Button
+              block
+              size="large"
+              onClick={handleZitadelLogin}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: '#fff',
+                borderRadius: 10,
+                height: 48,
+                fontSize: 16,
+                fontWeight: 600,
+                marginBottom: 16,
+              }}
+            >
+              Sign in with ZITADEL
+            </Button>
+            <Divider style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>or use credentials</span>
+            </Divider>
+          </>
+        )}
 
         <Form onFinish={onFinish} layout="vertical">
           <Form.Item name="email" rules={[{ required: true, message: 'Please enter your email' }]}>

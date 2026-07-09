@@ -31,9 +31,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.exp * 1000 >= Date.now()) {
-          // Keep loading true until user is resolved
-          fetchCurrentUser(token).finally(() => setLoading(false));
-          return;
+          // Check if this is a ZITADEL token (has azp claim) or a main-backend token
+          if (payload.azp || payload.iss?.includes('zitadel')) {
+            // ZITADEL token - decode user info from JWT
+            setUser({
+              id: payload.sub,
+              email: payload.email || payload.preferred_username || '',
+              name: payload.name || payload.email || '',
+              role: 'admin',
+              is_active: true,
+              created_at: payload.iat || Date.now() / 1000,
+            });
+            setLoading(false);
+          } else {
+            // Main-backend token - fetch user data
+            fetchCurrentUser(token).finally(() => setLoading(false));
+            return;
+          }
         } else {
           localStorage.removeItem('token');
         }
@@ -73,9 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     localStorage.removeItem('token');
     setUser(null);
+    // If using ZITADEL, redirect to ZITADEL logout
+    const ZITADEL_ISSUER = import.meta.env.VITE_ZITADEL_ISSUER;
+    const ZITADEL_CLIENT_ID = import.meta.env.VITE_ZITADEL_CLIENT_ID;
+    if (ZITADEL_ISSUER && ZITADEL_CLIENT_ID) {
+      const postLogoutUri = import.meta.env.VITE_ZITADEL_POST_LOGOUT_URI || window.location.origin;
+      window.location.href = `${ZITADEL_ISSUER}/oidc/v1/end_session?client_id=${ZITADEL_CLIENT_ID}&post_logout_redirect_uri=${encodeURIComponent(postLogoutUri)}`;
+    }
   };
 
   const hasRole = (role: string): boolean => {
