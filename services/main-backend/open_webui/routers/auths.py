@@ -203,23 +203,15 @@ async def _zitadel_userinfo(access_token: str) -> dict | None:
     """Fetch user info from Zitadel's OIDC userinfo endpoint."""
     issuer = await _get_zitadel_issuer()
     if not issuer:
-        log.error('ZITADEL userinfo: no issuer configured')
         return None
-    url = _zitadel_userinfo_url(issuer)
-    log.info('ZITADEL userinfo: calling %s', url)
-    log.info('ZITADEL userinfo: token length=%d, starts_with=%s', len(access_token), access_token[:20])
     try:
         async with ClientSession(trust_env=True) as session:
             async with session.get(
-                url,
+                _zitadel_userinfo_url(issuer),
                 headers={'Authorization': f'Bearer {access_token}'},
                 ssl=AIOHTTP_CLIENT_SESSION_SSL,
             ) as resp:
-                body = await resp.text()
-                log.info('ZITADEL userinfo: status=%d, body=%s', resp.status, body[:500])
-                if resp.status == 200:
-                    return await resp.json()
-                return None
+                return await resp.json() if resp.status == 200 else None
     except Exception as exc:
         log.error('Zitadel userinfo error: %s', exc)
         return None
@@ -669,14 +661,6 @@ async def zitadel_callback(
 ):
     """Accept a Zitadel id_token or access_token from the frontend OIDC flow
     and exchange it for a local session JWT."""
-    log.info('ZITADEL callback: received id_token=%s, access_token=%s',
-             bool(form_data.id_token), bool(form_data.access_token))
-    if form_data.access_token:
-        log.info('ZITADEL callback: access_token length=%d, starts_with=%s',
-                 len(form_data.access_token), form_data.access_token[:30])
-    if form_data.id_token:
-        log.info('ZITADEL callback: id_token length=%d, starts_with=%s',
-                 len(form_data.id_token), form_data.id_token[:30])
     # Prefer access_token (it's a standard JWT Bearer token for userinfo).
     # id_token from ZITADEL is often encrypted (JWE) and can't be decoded directly.
     token = form_data.access_token or form_data.id_token
