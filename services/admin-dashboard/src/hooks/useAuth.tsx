@@ -46,7 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchCurrentUser = async (token: string): Promise<void> => {
     try {
-      const response = await fetch('/api/v1/auths/', {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${API_BASE}/api/v1/auths/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
