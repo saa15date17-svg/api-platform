@@ -692,20 +692,35 @@ async def zitadel_callback(
 ):
     """Accept a Zitadel id_token or access_token from the frontend OIDC flow
     and exchange it for a local session JWT."""
-    # Prefer access_token — use introspection (works with JWE/opaque tokens).
-    token = form_data.access_token or form_data.id_token
+    log.info('ZITADEL callback: received id_token=%s (len=%s), access_token=%s (len=%s)',
+             bool(form_data.id_token), len(form_data.id_token) if form_data.id_token else 0,
+             bool(form_data.access_token), len(form_data.access_token) if form_data.access_token else 0)
+    # Prefer id_token — it's a signed JWS that can be decoded directly.
+    # access_token from ZITADEL Cloud is often a JWE that can't be decoded.
+    token = form_data.id_token or form_data.access_token
     if not token:
         raise HTTPException(400, detail='No token provided')
 
-    # Validate via introspection (works with any token type: JWE, JWS, opaque)
-    userinfo = await _zitadel_introspect(token)
-    if userinfo is None and form_data.id_token:
-        userinfo = await _zitadel_introspect(form_data.id_token)
-    if userinfo is None:
-        # Fallback: try userinfo endpoint (works for non-encrypted tokens)
-        userinfo = await _zitadel_userinfo(token)
+    userinfo = None
+
+    # 1. Try decoding id_token directly (works for JWS signed tokens)
+    if form_data.id_token:
+        try:
+            import base64, json as _json
+            parts = form_data.id_token.split('.')
+            if len(parts) == 3:
+                payload = parts[1]
+                payload += '=' * (4 - len(payload) % 4)
+                userinfo = _json.loads(base64.urlsafe_b64decode(payload))
+                log.info('ZITADEL callback: decoded id_token directly, email=%s', userinfo.get('email'))
+        except Exception as exc:
+            log.info('ZITADEL callback: id_token decode failed: %s', exc)
+
+    # 2. Try userinfo endpoint with id_token first, then access_token
     if userinfo is None and form_data.id_token:
         userinfo = await _zitadel_userinfo(form_data.id_token)
+    if userinfo is None and form_data.access_token:
+        userinfo = await _zitadel_userinfo(form_data.access_token)
 
     if userinfo is None:
         raise HTTPException(401, detail='Invalid ZITADEL token')
