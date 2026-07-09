@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { signInCallback } from '../lib/oidc';
+import { signInCallback, userManager } from '../lib/oidc';
 
 interface User {
   id: string;
@@ -36,9 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // This is an OIDC callback - exchange the ZITADEL token for a main-backend JWT
       signInCallback()
         .then(async (user) => {
+          // Clear oidc-client-ts stored user to prevent silent renew attempts
+          try { await userManager.removeUser(); } catch {}
+          
           if (user && (user.id_token || user.access_token)) {
             const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-            const tokenToSend = user.id_token || user.access_token;
             const resp = await fetch(`${API_BASE}/api/v1/auths/zitadel/callback`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -75,39 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.exp * 1000 >= Date.now()) {
-          // Check if this is a ZITADEL token (has azp claim) or a main-backend token
-          if (payload.azp || payload.iss?.includes('zitadel')) {
-            // ZITADEL token detected - exchange it for a main-backend JWT
-            const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-            fetch(`${API_BASE}/api/v1/auths/zitadel/callback`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id_token: token }),
-            })
-              .then(async (resp) => {
-                if (!resp.ok) throw new Error('Token exchange failed');
-                const data = await resp.json();
-                localStorage.setItem('token', data.token);
-                setUser({
-                  id: data.id,
-                  email: data.email,
-                  name: data.name,
-                  role: data.role,
-                  is_active: true,
-                  created_at: Date.now() / 1000,
-                });
-              })
-              .catch(() => {
-                localStorage.removeItem('token');
-                setUser(null);
-              })
-              .finally(() => setLoading(false));
-            return;
-          } else {
-            // Main-backend token - fetch user data
-            fetchCurrentUser(token).finally(() => setLoading(false));
-            return;
-          }
+          // Main-backend token - fetch user data
+          fetchCurrentUser(token).finally(() => setLoading(false));
+          return;
         } else {
           localStorage.removeItem('token');
         }

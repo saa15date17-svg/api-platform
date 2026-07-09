@@ -12,8 +12,8 @@ export const oidcConfig = {
   post_logout_redirect_uri: POST_LOGOUT_URI,
   response_type: 'code',
   scope: 'openid profile email offline_access',
-  automaticSilentRenew: true,
-  includeIdTokenInSilentRenew: true,
+  automaticSilentRenew: false,
+  includeIdTokenInSilentRenew: false,
 };
 
 export const userManager = new UserManager(oidcConfig);
