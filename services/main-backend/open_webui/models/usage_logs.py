@@ -39,23 +39,29 @@ class UsageLogsTable:
     async def insert_new_log(
         cls, 
         user_id: str, 
-        model: str, 
-        provider: str, 
-        prompt_tokens: int, 
-        completion_tokens: int, 
-        cost: float,
+        model: Optional[str] = None, 
+        provider: str = "openai", 
+        prompt_tokens: int = 0, 
+        completion_tokens: int = 0, 
+        cost: Optional[float] = None,
         api_key_id: Optional[str] = None, 
+        model_id: Optional[str] = None,
+        total_tokens: Optional[int] = None,
         db=None
     ) -> Optional[UsageLogModel]:
         async with get_async_db_context(db) as session:
             try:
                 log_id = str(uuid.uuid4())
-                total_tokens = prompt_tokens + completion_tokens
+                model_name = model or model_id or "default"
+                if total_tokens is None:
+                    total_tokens = prompt_tokens + completion_tokens
+                if cost is None:
+                    cost = cls.calculate_cost(model_name, prompt_tokens, completion_tokens)
                 new_log = UsageLog(
                     id=log_id,
                     user_id=user_id,
                     api_key_id=api_key_id,
-                    model=model,
+                    model=model_name,
                     provider=provider,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
