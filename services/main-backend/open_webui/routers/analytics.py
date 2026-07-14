@@ -419,3 +419,270 @@ async def get_model_overview(
     tags = [TagEntry(tag=tag, count=count) for tag, count in sorted(tag_counts.items(), key=lambda x: -x[1])[:10]]
 
     return ModelOverviewResponse(history=history, tags=tags)
+
+
+# ===========================================================================
+# Optamus Upgraded Dashboard Endpoints
+# ===========================================================================
+
+@router.get('/dashboard/overview')
+async def get_dashboard_overview(
+    db: AsyncSession = Depends(get_async_session),
+    user=Depends(get_admin_user),
+):
+    import hashlib
+    from sqlalchemy import select, func, case
+    from open_webui.models.users import User
+    from open_webui.models.usage_logs import UsageLog
+
+    now = datetime.now()
+    start_of_month = datetime(now.year, now.month, 1)
+    start_of_month_epoch = int(start_of_month.timestamp())
+    seven_days_ago = now - timedelta(days=7)
+    seven_days_ago_epoch = int(seven_days_ago.timestamp())
+
+    # 1. Seat utilization and active/invited users
+    stmt_users = select(
+        func.count(User.id).label("total"),
+        func.sum(case((User.role == 'admin', 1), else_=0)).label("premium"),
+        func.sum(case((User.last_active_at != None, 1), else_=0)).label("active")
+    )
+    res_users = await db.execute(stmt_users)
+    row_users = res_users.one()
+    total_users = row_users.total or 0
+    premium_users = row_users.premium or 0
+    active_users = row_users.active or 0
+    invited_users = total_users - active_users
+
+    # Owner ID
+    stmt_owner = select(User.id).where(User.role == 'admin').limit(1)
+    res_owner = await db.execute(stmt_owner)
+    owner_id = res_owner.scalar()
+
+    # MTD Spend & Total Messages & Tokens
+    stmt_logs = select(
+        func.sum(UsageLog.total_tokens).label("total_tokens"),
+        func.sum(UsageLog.cost).label("mtd_spend"),
+        func.count(UsageLog.id).label("total_messages")
+    ).where(UsageLog.created_at >= start_of_month_epoch)
+    res_logs = await db.execute(stmt_logs)
+    row_logs = res_logs.one()
+    total_tokens = row_logs.total_tokens or 0
+    mtd_spend = row_logs.mtd_spend or 0.0
+    total_messages = row_logs.total_messages or 0
+
+    # Avg Active Users (7d)
+    stmt_7d = select(UsageLog.created_at, UsageLog.user_id).where(UsageLog.created_at >= seven_days_ago_epoch)
+    res_7d = await db.execute(stmt_7d)
+    rows_7d = res_7d.all()
+
+    daily_active = defaultdict(set)
+    for created_at_val, user_id_val in rows_7d:
+        day_str = datetime.fromtimestamp(created_at_val).strftime('%Y-%m-%d')
+        daily_active[day_str].add(user_id_val)
+
+    avg_active_7d = 0
+    if daily_active:
+        avg_active_7d = sum(len(u_set) for u_set in daily_active.values()) / len(daily_active)
+    else:
+        avg_active_7d = active_users
+
+    return {
+        "seats": {
+            "total": total_users,
+            "active": active_users,
+            "invited": invited_users,
+            "premium": premium_users,
+            "capacity": 40
+        },
+        "tokens": total_tokens,
+        "spendMtd": float(mtd_spend),
+        "totalMessages": total_messages,
+        "avgActive7d": round(avg_active_7d),
+        "ownerId": owner_id
+    }
+
+
+@router.get('/dashboard/daily-series')
+async def get_dashboard_daily_series(
+    days: int = Query(90),
+    db: AsyncSession = Depends(get_async_session),
+    user=Depends(get_admin_user),
+):
+    from sqlalchemy import select
+    from open_webui.models.usage_logs import UsageLog
+
+    limit_epoch = int((datetime.now() - timedelta(days=days)).timestamp())
+    stmt_series = select(
+        UsageLog.created_at,
+        UsageLog.user_id,
+        UsageLog.total_tokens,
+        UsageLog.cost
+    ).where(UsageLog.created_at >= limit_epoch)
+    res_series = await db.execute(stmt_series)
+    rows_series = res_series.all()
+
+    daily_stats = defaultdict(lambda: {"active_users": set(), "messages": 0, "tokens": 0, "spend": 0.0})
+    for created_at, user_id, tokens, cost in rows_series:
+        day_str = datetime.fromtimestamp(created_at).strftime('%Y-%m-%d')
+        daily_stats[day_str]["active_users"].add(user_id)
+        daily_stats[day_str]["messages"] += 1
+        daily_stats[day_str]["tokens"] += tokens
+        daily_stats[day_str]["spend"] += cost
+
+    series_data = []
+    # Fill in date sequence to avoid gaps
+    now = datetime.now()
+    for i in range(days):
+        d = now - timedelta(days=days - 1 - i)
+        d_str = d.strftime('%Y-%m-%d')
+        stats = daily_stats.get(d_str, {"active_users": set(), "messages": 0, "tokens": 0, "spend": 0.0})
+        series_data.append({
+            "day": d_str,
+            "activeUsers": len(stats["active_users"]),
+            "messages": stats["messages"],
+            "tokens": stats["tokens"],
+            "spend": round(stats["spend"], 4)
+        })
+
+    return series_data
+
+
+@router.get('/dashboard/members')
+async def get_dashboard_members(
+    db: AsyncSession = Depends(get_async_session),
+    user=Depends(get_admin_user),
+):
+    import hashlib
+    from sqlalchemy import select, func
+    from open_webui.models.users import User
+    from open_webui.models.usage_logs import UsageLog
+
+    # Gather user usage aggregates
+    stmt_user_usage = select(
+        UsageLog.user_id,
+        func.count(UsageLog.id).label("messages"),
+        func.sum(UsageLog.total_tokens).label("tokens"),
+        func.sum(UsageLog.cost).label("spend")
+    ).group_by(UsageLog.user_id)
+    res_usage = await db.execute(stmt_user_usage)
+    usage_map = {row.user_id: row for row in res_usage.all()}
+
+    members = []
+    stmt_all_users = select(User)
+    res_users = await db.execute(stmt_all_users)
+    for u in res_users.scalars().all():
+        usage = usage_map.get(u.id)
+        messages = usage.messages if usage else 0
+        tokens = usage.tokens if usage else 0
+        spend = usage.spend if usage else 0.0
+
+        role_mapped = "admin" if u.role == "admin" else "member"
+        seat = "premium" if u.role == "admin" else "standard"
+        status = "active" if u.last_active_at else "invited"
+        joined_at = datetime.fromtimestamp(u.created_at).isoformat() + "Z" if u.created_at else None
+        last_active_at = datetime.fromtimestamp(u.last_active_at).isoformat() + "Z" if u.last_active_at else None
+        avatar_hue = int(hashlib.md5(u.email.encode()).hexdigest(), 16) % 360
+
+        members.append({
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": role_mapped,
+            "seat": seat,
+            "status": status,
+            "department": "Engineering" if u.role == "admin" else "General",
+            "joinedAt": joined_at,
+            "lastActiveAt": last_active_at,
+            "messages": messages,
+            "tokens": tokens,
+            "spend": round(spend, 4),
+            "avatarHue": avatar_hue
+        })
+
+    # Sort recent active first
+    members.sort(key=lambda m: m["lastActiveAt"] or "", reverse=True)
+    return members
+
+
+@router.get('/dashboard/models')
+async def get_dashboard_models(
+    db: AsyncSession = Depends(get_async_session),
+    user=Depends(get_admin_user),
+):
+    from sqlalchemy import select, func
+    from open_webui.models.usage_logs import UsageLog
+
+    stmt_models = select(
+        UsageLog.model,
+        func.count(UsageLog.id).label("requests"),
+        func.sum(UsageLog.total_tokens).label("tokens"),
+        func.sum(UsageLog.cost).label("spend")
+    ).group_by(UsageLog.model).order_by(func.count(UsageLog.id).desc())
+    res_models = await db.execute(stmt_models)
+
+    models_data = []
+    for row in res_models.all():
+        models_data.append({
+            "model": row.model,
+            "requests": row.requests,
+            "tokens": row.tokens or 0,
+            "spend": round(row.spend or 0.0, 4)
+        })
+
+    # If empty, return a default mock item to avoid breaking charts
+    if not models_data:
+        models_data.append({
+            "model": "Default Model",
+            "requests": 0,
+            "tokens": 0,
+            "spend": 0.0
+        })
+
+    return models_data
+
+
+@router.get('/dashboard/sessions')
+async def get_dashboard_sessions(
+    limit: int = Query(40),
+    db: AsyncSession = Depends(get_async_session),
+    user=Depends(get_admin_user),
+):
+    import hashlib
+    from sqlalchemy import select, func
+    from open_webui.models.users import User
+    from open_webui.models.chats import Chat
+    from open_webui.models.chat_messages import ChatMessage
+
+    stmt_sessions = select(
+        Chat.id,
+        Chat.title,
+        Chat.created_at,
+        User.name.label("member_name"),
+        User.email.label("member_email")
+    ).join(User, Chat.user_id == User.id).order_by(Chat.created_at.desc()).limit(limit)
+    res_sessions = await db.execute(stmt_sessions)
+    sessions_rows = res_sessions.all()
+
+    sessions_data = []
+    for row in sessions_rows:
+        stmt_msg = select(
+            func.count(ChatMessage.id).label("count"),
+            func.max(ChatMessage.model_id).label("model")
+        ).where(ChatMessage.chat_id == row.id)
+        res_msg = await db.execute(stmt_msg)
+        row_msg = res_msg.one()
+
+        avatar_hue = int(hashlib.md5(row.member_email.encode()).hexdigest(), 16) % 360
+
+        sessions_data.append({
+            "id": row.id,
+            "title": row.title or "Untitled Conversation",
+            "model": row_msg.model or "unknown",
+            "messages": row_msg.count or 0,
+            "createdAt": datetime.fromtimestamp(row.created_at).isoformat() + "Z" if row.created_at else None,
+            "memberName": row.member_name,
+            "avatarHue": avatar_hue
+        })
+
+    return sessions_data
