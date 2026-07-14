@@ -628,6 +628,7 @@ async def update_password(
 ############################
 
 
+# Sign in endpoint for native authentication
 @router.post('/signin', response_model=SessionUserResponse)
 async def signin(
     request: Request,
