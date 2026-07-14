@@ -146,8 +146,10 @@ ADMIN_CONFIG_KEYS = {
 
 
 async def _get_zitadel_issuer() -> str | None:
-    """Return Zitadel's OIDC issuer URL from Config, or None if unconfigured."""
-    return await Config.get('oauth.provider_url')
+    """Return Zitadel's OIDC issuer URL from Config, or fallback to env."""
+    from open_webui.env import ZITADEL_OIDC_URL
+    provider_url = await Config.get('oauth.provider_url')
+    return provider_url or ZITADEL_OIDC_URL
 
 
 def _zitadel_token_url(issuer: str) -> str:
@@ -176,7 +178,13 @@ async def _zitadel_password_grant(email: str, password: str) -> dict | None:
     Returns the token-response dict (access_token, id_token, etc.) or None.
     """
     issuer = await _get_zitadel_issuer()
+    from open_webui.env import ZITADEL_OPENWEBUI_CLIENT_ID
+    
+    # Check DB config first, fallback to env vars
     client_id = await Config.get('oauth.client_id')
+    if not client_id:
+        client_id = ZITADEL_OPENWEBUI_CLIENT_ID
+        
     client_secret = await Config.get('oauth.client_secret')
     if not issuer or not client_id:
         log.error('Zitadel OIDC not configured — missing provider URL or client ID')
@@ -228,7 +236,12 @@ async def _zitadel_introspect(access_token: str) -> dict | None:
     only accepts standard Bearer tokens.
     """
     issuer = await _get_zitadel_issuer()
+    from open_webui.env import ZITADEL_OPENWEBUI_CLIENT_ID
+    
     client_id = await Config.get('oauth.client_id')
+    if not client_id:
+        client_id = ZITADEL_OPENWEBUI_CLIENT_ID
+        
     if not issuer or not client_id:
         return None
     try:
@@ -716,11 +729,19 @@ async def zitadel_callback(
         except Exception as exc:
             log.info('ZITADEL callback: id_token decode failed: %s', exc)
 
-    # 2. Try userinfo endpoint with id_token first, then access_token
-    if userinfo is None and form_data.id_token:
-        userinfo = await _zitadel_userinfo(form_data.id_token)
-    if userinfo is None and form_data.access_token:
-        userinfo = await _zitadel_userinfo(form_data.access_token)
+    # 2. Try userinfo endpoint with access_token first if email is missing
+    if (userinfo is None or not userinfo.get('email')) and form_data.access_token:
+        fetched = await _zitadel_userinfo(form_data.access_token)
+        if fetched:
+            userinfo = userinfo or {}
+            userinfo.update(fetched)
+            
+    # 3. Fallback to userinfo with id_token if still missing
+    if (userinfo is None or not userinfo.get('email')) and form_data.id_token:
+        fetched = await _zitadel_userinfo(form_data.id_token)
+        if fetched:
+            userinfo = userinfo or {}
+            userinfo.update(fetched)
 
     if userinfo is None:
         raise HTTPException(401, detail='Invalid ZITADEL token')
