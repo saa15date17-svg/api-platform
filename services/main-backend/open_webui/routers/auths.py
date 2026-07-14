@@ -173,10 +173,7 @@ def _zitadel_end_session_url(issuer: str) -> str:
 
 
 async def _zitadel_password_grant(email: str, password: str) -> dict | None:
-    """Authenticate against Zitadel via the OIDC password grant.
-
-    Returns the token-response dict (access_token, id_token, etc.) or None.
-    """
+    """Authenticate against Zitadel via the OIDC password grant."""
     issuer = await _get_zitadel_issuer()
     from open_webui.env import ZITADEL_OPENWEBUI_CLIENT_ID
     
@@ -186,6 +183,8 @@ async def _zitadel_password_grant(email: str, password: str) -> dict | None:
         client_id = ZITADEL_OPENWEBUI_CLIENT_ID
         
     client_secret = await Config.get('oauth.client_secret')
+    
+    log.info('Zitadel password grant: issuer=%s, client_id=%s', issuer, client_id)
     if not issuer or not client_id:
         log.error('Zitadel OIDC not configured — missing provider URL or client ID')
         return None
@@ -205,7 +204,11 @@ async def _zitadel_password_grant(email: str, password: str) -> dict | None:
             async with session.post(
                 _zitadel_token_url(issuer), data=data, ssl=AIOHTTP_CLIENT_SESSION_SSL
             ) as resp:
-                return await resp.json() if resp.status == 200 else None
+                if resp.status != 200:
+                    err_body = await resp.text()
+                    log.error('Zitadel password grant failed: status=%s body=%s', resp.status, err_body)
+                    return None
+                return await resp.json()
     except Exception as exc:
         log.error('Zitadel password grant error: %s', exc)
         return None
@@ -215,6 +218,7 @@ async def _zitadel_userinfo(access_token: str) -> dict | None:
     """Fetch user info from Zitadel's OIDC userinfo endpoint."""
     issuer = await _get_zitadel_issuer()
     if not issuer:
+        log.error('Zitadel userinfo: issuer is empty')
         return None
     try:
         async with ClientSession(trust_env=True) as session:
@@ -223,7 +227,11 @@ async def _zitadel_userinfo(access_token: str) -> dict | None:
                 headers={'Authorization': f'Bearer {access_token}'},
                 ssl=AIOHTTP_CLIENT_SESSION_SSL,
             ) as resp:
-                return await resp.json() if resp.status == 200 else None
+                if resp.status != 200:
+                    err_body = await resp.text()
+                    log.error('Zitadel userinfo failed: status=%s body=%s', resp.status, err_body)
+                    return None
+                return await resp.json()
     except Exception as exc:
         log.error('Zitadel userinfo error: %s', exc)
         return None
