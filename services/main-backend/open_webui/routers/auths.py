@@ -605,13 +605,18 @@ async def update_password(
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
     user = await Users.get_user_by_id(session_user.id, db=db)
+    from open_webui.models.auths import Auths
+    auth_obj = await Auths.get_auth_by_id(user.id, db=db)
+    if not auth_obj:
+        raise HTTPException(400, detail=ERROR_MESSAGES.INCORRECT_PASSWORD)
+
     from open_webui.utils.auth import verify_password, get_password_hash
-    is_valid = await verify_password(form_data.password, user.password)
+    is_valid = await verify_password(form_data.password, auth_obj.password)
     if not is_valid:
         raise HTTPException(400, detail=ERROR_MESSAGES.INCORRECT_PASSWORD)
 
     hashed = await get_password_hash(form_data.new_password)
-    await Users.update_user_by_id(user.id, {'password': hashed}, db=db)
+    await Auths.update_auth_password_by_id(user.id, hashed, db=db)
 
     await publish_event(
         request,
@@ -663,8 +668,13 @@ async def signin(
     if user is None:
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
+    from open_webui.models.auths import Auths
+    auth_obj = await Auths.get_auth_by_id(user.id, db=db)
+    if auth_obj is None:
+        raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
+
     from open_webui.utils.auth import verify_password
-    is_valid = await verify_password(form_data.password, user.password)
+    is_valid = await verify_password(form_data.password, auth_obj.password)
     if not is_valid:
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
@@ -912,6 +922,13 @@ async def add_user(
         )
 
         if local_user:
+            from open_webui.models.auths import Auths
+            await Auths.insert_new_auth(
+                id=local_user.id,
+                email=local_user.email,
+                password=hashed,
+                db=db
+            )
             await apply_default_group_assignment(
                 await Config.get('ui.default_group_id'),
                 local_user.id,

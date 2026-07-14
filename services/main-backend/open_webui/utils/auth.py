@@ -376,6 +376,12 @@ async def create_admin_user(email: str, password: str, name: str = 'Admin'):
             role='admin',
         )
         if user:
+            from open_webui.models.auths import Auths
+            await Auths.insert_new_auth(
+                id=user.id,
+                email=user.email,
+                password=hashed,
+            )
             log.info(f'Admin account created successfully: {email}')
             return user
         else:
