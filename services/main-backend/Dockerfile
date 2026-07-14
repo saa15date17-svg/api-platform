@@ -11,7 +11,7 @@ RUN apt-get update && \
     curl jq ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./requirements.txt
+COPY services/main-backend/requirements.txt ./requirements.txt
 
 ENV UV_LINK_MODE=copy
 
@@ -20,7 +20,7 @@ RUN set -e; \
     uv pip install --system -r requirements.txt --no-cache-dir; \
     mkdir -p /app/data; chown -R 0:0 /app/data/
 
-COPY . .
+COPY services/main-backend/ .
 
 EXPOSE 9000
 
