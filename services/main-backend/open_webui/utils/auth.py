@@ -172,6 +172,19 @@ async def get_password_hash(password: str) -> str:
     raise ValueError(f'Unsupported PASSWORD_HASH_ALGORITHM: {PASSWORD_HASH_ALGORITHM}')
 
 
+async def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password using the configured algorithm in a thread pool."""
+    if PASSWORD_HASH_ALGORITHM == 'argon2':
+        from argon2 import PasswordHasher
+        from argon2.exceptions import VerifyMismatchError
+        try:
+            return await asyncio.to_thread(PasswordHasher().verify, hashed_password, plain_password)
+        except VerifyMismatchError:
+            return False
+    if PASSWORD_HASH_ALGORITHM == 'bcrypt':
+        return await asyncio.to_thread(bcrypt.checkpw, plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    return False
+
 def validate_password(password: str) -> bool:
     # bcrypt only accepts 72 bytes; reject long new passwords instead of storing an unusable hash.
     if PASSWORD_HASH_ALGORITHM == 'bcrypt' and len(password.encode('utf-8')) > PASSWORD_BCRYPT_MAX_BYTES:

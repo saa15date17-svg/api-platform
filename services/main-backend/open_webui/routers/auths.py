@@ -604,24 +604,14 @@ async def update_password(
     if not session_user:
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
-    # Delegate the password change to Zitadel's management API.
-    # Zitadel's v2 management endpoint: PUT /users/{id}/password
-    admin_token = await _get_admin_token()
-    if not admin_token:
-        raise HTTPException(500, detail='Zitadel management API unavailable')
-
-    result = await _zitadel_management_call(
-        'PUT',
-        f'/users/{session_user.id}/password',
-        admin_token,
-        {
-            'newPassword': form_data.new_password,
-            'oldPassword': form_data.password,
-            'changeRequired': False,
-        },
-    )
-    if result is None:
+    user = await Users.get_user_by_id(session_user.id, db=db)
+    from open_webui.utils.auth import verify_password, get_password_hash
+    is_valid = await verify_password(form_data.password, user.password)
+    if not is_valid:
         raise HTTPException(400, detail=ERROR_MESSAGES.INCORRECT_PASSWORD)
+
+    hashed = await get_password_hash(form_data.new_password)
+    await Users.update_user_by_id(user.id, {'password': hashed}, db=db)
 
     await publish_event(
         request,
@@ -668,28 +658,14 @@ async def signin(
         return await create_session_response(request, user, db, response, set_cookie=True, source='password')
     # -------------------------------
 
-    # 1. Validate credentials against Zitadel via OIDC password grant.
-    token_resp = await _zitadel_password_grant(form_data.email.lower(), form_data.password)
-    if token_resp is None:
+    user = await Users.get_user_by_email(form_data.email.lower(), db=db)
+    if user is None:
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
-    access_token = token_resp.get('access_token')
-    if not access_token:
+    from open_webui.utils.auth import verify_password
+    is_valid = await verify_password(form_data.password, user.password)
+    if not is_valid:
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
-
-    # 2. Fetch user info from Zitadel's userinfo endpoint.
-    userinfo = await _zitadel_userinfo(access_token)
-    if userinfo is None:
-        raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
-
-    email = userinfo.get('email', form_data.email.lower()).lower()
-    name = userinfo.get('name', userinfo.get('preferred_username', email))
-    zitadel_roles = userinfo.get('urn:zitadel:iam:org:project:roles', {})
-
-    # 3. Find or create a local user record.
-    user = await _find_or_create_user_from_zitadel(
-        request, email, name, db=db, source='password', zitadel_roles=zitadel_roles
-    )
 
     return await create_session_response(request, user, db, response, set_cookie=True, source='password')
 
@@ -922,26 +898,9 @@ async def add_user(
         raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)
 
     try:
-        # Delegate user creation to Zitadel's Management API.
-        admin_token = await _get_admin_token()
-        if admin_token:
-            zitadel_payload = {
-                'email': {'email': form_data.email.lower()},
-                'userName': form_data.email.lower(),
-                'profile': {'givenName': form_data.name},
-                'initialPassword': {'password': form_data.password},
-            }
-            if form_data.role == 'admin':
-                zitadel_payload['members'] = [
-                    {'roles': ['IAM_OWNER']}  # or org-specific admin role
-                ]
-            await _zitadel_management_call('POST', '/users/human', admin_token, zitadel_payload)
-
-        # Also create a local user record (with hashed placeholder password so
-        # local DB queries still work, even though Zitadel owns the credential).
         from open_webui.utils.auth import get_password_hash
 
-        hashed = await get_password_hash(str(uuid.uuid4()))
+        hashed = await get_password_hash(form_data.password)
         local_user = await Users.insert_new_user(
             id=str(uuid.uuid4()),
             email=form_data.email.lower(),
