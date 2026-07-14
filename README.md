@@ -4,15 +4,15 @@ An OpenRouter-like API platform built with microservice architecture.
 
 ## Architecture
 
-Five independently deployable services:
+Five independently deployable services (currently running on PaaS free tiers):
 
-| Service | Role | Tech | Deploy |
-|---------|------|------|--------|
-| **Zitadel** | Auth / IAM | Go + PostgreSQL | Official container |
-| **Bifrost** | AI Gateway | Go | Official container |
-| **OptamusUI** | User Chat Frontend | Python + Svelte | Custom Docker image |
-| **MainBackend** | Business Logic API | Python + FastAPI | Custom Docker image |
-| **Admin Dashboard** | Admin Panel | React + Vite 6 + Ant Design 5 | Custom Docker image |
+| Service | Role | Tech | Deploy Target |
+|---------|------|------|---------------|
+| **Zitadel** | Auth / IAM | Go + PostgreSQL | Render (Web Service + DB) |
+| **Bifrost** | AI Gateway | Go | Railway |
+| **OptamusUI** | User Chat Frontend | SvelteKit (OpenWebUI Frontend) | Railway |
+| **MainBackend** | Business Logic API | Python + FastAPI (OpenWebUI Backend) | Railway |
+| **Admin Dashboard** | Admin Panel | React + Vite 6 + Ant Design 5 | Render (Static Site) |
 
 ## Domain Structure
 
@@ -21,13 +21,34 @@ Five independently deployable services:
 - `api.optamus.cloud` — MainBackend + Bifrost (developer API)
 - `auth.optamus.cloud` — Zitadel (OIDC login)
 
-## Quick Start
+## Deployment (PaaS - Free Tier)
+
+Since the project is deployed across Render and Railway on free tiers, standard deployment is managed via GitOps:
+
+1. **Automatic Deployment**:
+   Commit and push your changes to the `master` branch.
+   ```bash
+   git add .
+   git commit -m "Update feature"
+   git push origin master
+   ```
+   Both Render and Railway are linked to the GitHub repository and will automatically build and deploy the services.
+
+2. **Manual CLI Deployment (Optional)**:
+   - For **Railway** services (`main-backend`, `optamusUI`, `bifrost`):
+     Run `railway up --service <service_name>` inside the project root or specific directory.
+   - For **Render** services (`admin-dashboard`, `zitadel`):
+     Use the Render dashboard or CLI (e.g., `render deploys create <service_id>`).
+
+## Local Development (Docker)
+
+If you wish to run the entire stack locally:
 
 ```bash
 # 1. Copy and configure environment
 cp .env.example .env
 
-# 2. Deploy all services
+# 2. Deploy all services locally using Docker Compose
 bash infrastructure/scripts/deploy.sh
 ```
 
