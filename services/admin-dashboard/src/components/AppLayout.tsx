@@ -22,7 +22,6 @@ const menuItems = [
   { key: '/usage', icon: <BarChartOutlined />, label: 'Usage', roles: ['admin', 'user', 'billing'] },
   { key: '/billing', icon: <DollarOutlined />, label: 'Billing', roles: ['admin', 'billing'] },
   { key: '/settings', icon: <SettingOutlined />, label: 'Settings', roles: ['admin'] },
-  { key: '/zitadel', icon: <SettingOutlined />, label: 'IAM Console (Zitadel)', roles: ['admin'] },
   { key: '/bifrost', icon: <SettingOutlined />, label: 'AI Gateway (Bifrost)', roles: ['admin'] },
 ];
 

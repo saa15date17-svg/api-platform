@@ -3,8 +3,10 @@ import { browser, dev } from '$app/environment';
 
 export const APP_NAME = 'Optamus AI';
 
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
+
 export const WEBUI_HOSTNAME = browser ? (dev ? `${location.hostname}:${location.port}` : ``) : '';
-export const WEBUI_BASE_URL = browser ? (dev ? `http://${WEBUI_HOSTNAME}` : ``) : ``;
+export const WEBUI_BASE_URL = configuredBaseUrl || (browser ? (dev ? `http://${WEBUI_HOSTNAME}` : ``) : ``);
 export const WEBUI_API_BASE_URL = `${WEBUI_BASE_URL}/api/v1`;
 
 export const OLLAMA_API_BASE_URL = `${WEBUI_BASE_URL}/ollama`;

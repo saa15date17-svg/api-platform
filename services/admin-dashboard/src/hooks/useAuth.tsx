@@ -157,13 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     localStorage.removeItem('token');
     setUser(null);
-    // If using ZITADEL, redirect to ZITADEL logout
-    const ZITADEL_ISSUER = import.meta.env.VITE_ZITADEL_ISSUER;
-    const ZITADEL_CLIENT_ID = import.meta.env.VITE_ZITADEL_CLIENT_ID;
-    if (ZITADEL_ISSUER && ZITADEL_CLIENT_ID) {
-      const postLogoutUri = import.meta.env.VITE_ZITADEL_POST_LOGOUT_URI || window.location.origin;
-      window.location.href = `${ZITADEL_ISSUER}/oidc/v1/end_session?client_id=${ZITADEL_CLIENT_ID}&post_logout_redirect_uri=${encodeURIComponent(postLogoutUri)}`;
-    }
+    // Zitadel OIDC redirect is disabled for local auth
+    const ZITADEL_ISSUER = null;
+    const ZITADEL_CLIENT_ID = null;
   };
 
   const hasRole = (role: string): boolean => {

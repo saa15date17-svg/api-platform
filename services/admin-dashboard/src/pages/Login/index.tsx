@@ -19,7 +19,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasZitadel = !!(import.meta.env.VITE_ZITADEL_ISSUER && import.meta.env.VITE_ZITADEL_CLIENT_ID);
+  const hasZitadel = false;
 
   const handleZitadelLogin = async () => {
     try {
