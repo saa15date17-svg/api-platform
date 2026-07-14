@@ -1,10 +1,8 @@
 """
-Auth router -- thin shim over Zitadel (OIDC provider).
+Auth router -- native local database authentication.
 
-Auth-domain endpoints (signin, signout, password, profile, user admin)
-delegate to Zitadel's OIDC / Management v2 APIs.  App-specific endpoints
-(timezone, API keys, admin config, MCP OAuth sessions) keep their local
-logic unchanged.
+Endpoints for signin, signup/add, password updates, signout, profile management,
+API keys, and admin configuration.
 """
 
 from __future__ import annotations
@@ -141,157 +139,8 @@ ADMIN_CONFIG_KEYS = {
 }
 
 # ---------------------------------------------------------------------------
-# Zitadel helpers
+# Native Auth Helpers
 # ---------------------------------------------------------------------------
-
-
-async def _get_zitadel_issuer() -> str | None:
-    """Return Zitadel's OIDC issuer URL from Config, or fallback to env."""
-    from open_webui.env import ZITADEL_OIDC_URL
-    provider_url = await Config.get('oauth.provider_url')
-    return provider_url or ZITADEL_OIDC_URL
-
-
-def _zitadel_token_url(issuer: str) -> str:
-    return f"{issuer.rstrip('/')}/oauth/v2/token"
-
-
-def _zitadel_userinfo_url(issuer: str) -> str:
-    return f"{issuer.rstrip('/')}/oidc/v1/userinfo"
-
-
-def _zitadel_introspect_url(issuer: str) -> str:
-    return f"{issuer.rstrip('/')}/oauth/v2/introspect"
-
-
-def _zitadel_management_url(issuer: str, path: str) -> str:
-    return f"{issuer.rstrip('/')}/management/v1{path}"
-
-
-def _zitadel_end_session_url(issuer: str) -> str:
-    return f"{issuer.rstrip('/')}/oidc/v1/end_session"
-
-
-async def _zitadel_password_grant(email: str, password: str) -> dict | None:
-    """Authenticate against Zitadel via the OIDC password grant."""
-    issuer = await _get_zitadel_issuer()
-    from open_webui.env import ZITADEL_OPENWEBUI_CLIENT_ID
-    
-    # Check DB config first, fallback to env vars
-    client_id = await Config.get('oauth.client_id')
-    if not client_id:
-        client_id = ZITADEL_OPENWEBUI_CLIENT_ID
-        
-    client_secret = await Config.get('oauth.client_secret')
-    
-    log.info('Zitadel password grant: issuer=%s, client_id=%s', issuer, client_id)
-    if not issuer or not client_id:
-        log.error('Zitadel OIDC not configured — missing provider URL or client ID')
-        return None
-
-    data = {
-        'grant_type': 'password',
-        'username': email,
-        'password': password,
-        'scope': 'openid email profile',
-        'client_id': client_id,
-    }
-    if client_secret:
-        data['client_secret'] = client_secret
-
-    try:
-        async with ClientSession(trust_env=True) as session:
-            async with session.post(
-                _zitadel_token_url(issuer), data=data, ssl=AIOHTTP_CLIENT_SESSION_SSL
-            ) as resp:
-                if resp.status != 200:
-                    err_body = await resp.text()
-                    log.error('Zitadel password grant failed: status=%s body=%s', resp.status, err_body)
-                    return None
-                return await resp.json()
-    except Exception as exc:
-        log.error('Zitadel password grant error: %s', exc)
-        return None
-
-
-async def _zitadel_userinfo(access_token: str) -> dict | None:
-    """Fetch user info from Zitadel's OIDC userinfo endpoint."""
-    issuer = await _get_zitadel_issuer()
-    if not issuer:
-        log.error('Zitadel userinfo: issuer is empty')
-        return None
-    try:
-        async with ClientSession(trust_env=True) as session:
-            async with session.get(
-                _zitadel_userinfo_url(issuer),
-                headers={'Authorization': f'Bearer {access_token}'},
-                ssl=AIOHTTP_CLIENT_SESSION_SSL,
-            ) as resp:
-                if resp.status != 200:
-                    err_body = await resp.text()
-                    log.error('Zitadel userinfo failed: status=%s body=%s', resp.status, err_body)
-                    return None
-                return await resp.json()
-    except Exception as exc:
-        log.error('Zitadel userinfo error: %s', exc)
-        return None
-
-
-async def _zitadel_introspect(access_token: str) -> dict | None:
-    """Validate a token via Zitadel's introspection endpoint.
-
-    Works with any token type (opaque, JWE, JWS) unlike userinfo which
-    only accepts standard Bearer tokens.
-    """
-    issuer = await _get_zitadel_issuer()
-    from open_webui.env import ZITADEL_OPENWEBUI_CLIENT_ID
-    
-    client_id = await Config.get('oauth.client_id')
-    if not client_id:
-        client_id = ZITADEL_OPENWEBUI_CLIENT_ID
-        
-    if not issuer or not client_id:
-        return None
-    try:
-        async with ClientSession(trust_env=True) as session:
-            async with session.post(
-                _zitadel_introspect_url(issuer),
-                data={'token': access_token, 'client_id': client_id},
-                ssl=AIOHTTP_CLIENT_SESSION_SSL,
-            ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if data.get('active'):
-                        return data
-                return None
-    except Exception as exc:
-        log.error('Zitadel introspect error: %s', exc)
-        return None
-
-
-async def _zitadel_management_call(
-    method: str, path: str, token: str, json_body: dict | None = None
-) -> dict | None:
-    """Call Zitadel's Management v2 API.
-
-    Requires an admin-scoped bearer token.
-    """
-    issuer = await _get_zitadel_issuer()
-    if not issuer:
-        return None
-    try:
-        async with ClientSession(trust_env=True) as session:
-            async with session.request(
-                method,
-                _zitadel_management_url(issuer, path),
-                headers={'Authorization': f'Bearer {token}'},
-                json=json_body,
-                ssl=AIOHTTP_CLIENT_SESSION_SSL,
-            ) as resp:
-                return await resp.json() if resp.status < 400 else None
-    except Exception as exc:
-        log.error('Zitadel management API error: %s', exc)
-        return None
 
 
 # ---------------------------------------------------------------------------
@@ -299,68 +148,7 @@ async def _zitadel_management_call(
 # ---------------------------------------------------------------------------
 
 
-async def _find_or_create_user_from_zitadel(
-    request: Request,
-    email: str,
-    name: str,
-    *,
-    db: AsyncSession,
-    source: str = 'zitadel',
-    zitadel_roles: dict | None = None,
-) -> UserModel:
-    """Look up an existing local user by email or create one after a Zitadel auth.
-
-    Mirrors the original signup_handler logic (first-user becomes admin, etc.)
-    but does NOT store a local password — Zitadel owns the credential.
-    """
-    user = await Users.get_user_by_email(email.lower(), db=db)
-    
-    # If the user already exists, ensure their role stays synced with Zitadel
-    if user:
-        if zitadel_roles and 'admin' in zitadel_roles and user.role != 'admin':
-            await Users.update_user_role_by_id(user.id, 'admin', db=db)
-            user = await Users.get_user_by_id(user.id, db=db)
-        return user
-
-    # No local user yet — create one with a UUID password placeholder
-    # (the credential lives in Zitadel, not here).
-    from open_webui.utils.auth import get_password_hash
-
-    placeholder = str(uuid.uuid4())
-    hashed = await get_password_hash(placeholder)
-
-    user = await Users.insert_new_user(
-        id=str(uuid.uuid4()),
-        email=email.lower(),
-        name=name,
-        role=await Config.get('ui.default_user_role'),
-        db=db,
-    )
-    if not user:
-        raise HTTPException(500, detail=ERROR_MESSAGES.CREATE_USER_ERROR)
-
-    # Roles are entirely governed by Zitadel claims. Wait for OIDC sync.
-    # (Removed auto-admin fallback to enforce strict separation of admin dashboard)
-    if zitadel_roles and 'admin' in zitadel_roles:
-        await Users.update_user_role_by_id(user.id, 'admin', db=db)
-        user = await Users.get_user_by_id(user.id, db=db)
-
-    await apply_default_group_assignment(
-        await Config.get('ui.default_group_id'),
-        user.id,
-        db=db,
-    )
-
-    await publish_event(
-        request,
-        EVENTS.USER_CREATED,
-        actor=user,
-        subject_id=user.id,
-        source=source,
-        data={'role': user.role},
-    )
-
-    return user
+# (Removed Zitadel user provisioning helper)
 
 
 async def create_session_response(
@@ -506,7 +294,7 @@ async def get_session_user(
 
 
 ############################
-# Update Profile  (-> Zitadel Management API)
+# Update Profile
 ############################
 
 
@@ -520,21 +308,7 @@ async def update_profile(
     if not session_user:
         raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
-    # Proxy the profile update to Zitadel's user management API.
-    # Only writable fields are sent (name, profile_image_url).
-    zitadel_payload = {}
-    if form_data.name is not None:
-        zitadel_payload['userName'] = form_data.name
-        zitadel_payload['profile'] = {'givenName': form_data.name}
-
-    if zitadel_payload:
-        # Obtain an admin token for the management call.
-        admin_email = await Config.get('auth.admin.email')
-        admin_token = await _get_admin_token()
-        if admin_token:
-            await _zitadel_management_call(
-                'PUT', f'/users/{session_user.id}', admin_token, zitadel_payload
-            )
+    # Local profile update (Zitadel proxy removed)
 
     # Also update the local user record so the app's DB stays consistent.
     user = await Users.update_user_by_id(
@@ -590,7 +364,7 @@ async def update_timezone(
 
 
 ############################
-# Update Password  (-> Zitadel Management API)
+# Update Password
 ############################
 
 
@@ -629,7 +403,7 @@ async def update_password(
 
 
 ############################
-# SignIn  (-> Zitadel password grant)
+# SignIn
 ############################
 
 
@@ -681,82 +455,10 @@ async def signin(
     return await create_session_response(request, user, db, response, set_cookie=True, source='password')
 
 
-############################
-# ZITADEL OIDC Token Exchange
-############################
-
-
-class ZitadelCallbackForm(BaseModel):
-    id_token: str | None = None
-    access_token: str | None = None
-
-
-@router.post('/zitadel/callback', response_model=SessionUserResponse)
-async def zitadel_callback(
-    request: Request,
-    response: Response,
-    form_data: ZitadelCallbackForm,
-    db: AsyncSession = Depends(get_async_session),
-):
-    """Accept a Zitadel id_token or access_token from the frontend OIDC flow
-    and exchange it for a local session JWT."""
-    log.info('ZITADEL callback: received id_token=%s (len=%s), access_token=%s (len=%s)',
-             bool(form_data.id_token), len(form_data.id_token) if form_data.id_token else 0,
-             bool(form_data.access_token), len(form_data.access_token) if form_data.access_token else 0)
-    # Prefer id_token — it's a signed JWS that can be decoded directly.
-    # access_token from ZITADEL Cloud is often a JWE that can't be decoded.
-    token = form_data.id_token or form_data.access_token
-    if not token:
-        raise HTTPException(400, detail='No token provided')
-
-    userinfo = None
-
-    # 1. Try decoding id_token directly (works for JWS signed tokens)
-    if form_data.id_token:
-        try:
-            import base64, json as _json
-            parts = form_data.id_token.split('.')
-            if len(parts) == 3:
-                payload = parts[1]
-                payload += '=' * (4 - len(payload) % 4)
-                userinfo = _json.loads(base64.urlsafe_b64decode(payload))
-                log.info('ZITADEL callback: decoded id_token directly, email=%s', userinfo.get('email'))
-        except Exception as exc:
-            log.info('ZITADEL callback: id_token decode failed: %s', exc)
-
-    # 2. Try userinfo endpoint with access_token first if email is missing
-    if (userinfo is None or not userinfo.get('email')) and form_data.access_token:
-        fetched = await _zitadel_userinfo(form_data.access_token)
-        if fetched:
-            userinfo = userinfo or {}
-            userinfo.update(fetched)
-            
-    # 3. Fallback to userinfo with id_token if still missing
-    if (userinfo is None or not userinfo.get('email')) and form_data.id_token:
-        fetched = await _zitadel_userinfo(form_data.id_token)
-        if fetched:
-            userinfo = userinfo or {}
-            userinfo.update(fetched)
-
-    if userinfo is None:
-        raise HTTPException(401, detail='Invalid ZITADEL token')
-
-    email = userinfo.get('email', '').lower()
-    name = userinfo.get('name', userinfo.get('preferred_username', email))
-    zitadel_roles = userinfo.get('urn:zitadel:iam:org:project:roles', {})
-
-    if not email:
-        raise HTTPException(400, detail='No email in ZITADEL token')
-
-    user = await _find_or_create_user_from_zitadel(
-        request, email, name, db=db, source='oidc', zitadel_roles=zitadel_roles
-    )
-
-    return await create_session_response(request, user, db, response, set_cookie=True, source='oidc')
 
 
 ############################
-# SignOut  (-> Zitadel end_session_endpoint)
+# SignOut
 ############################
 
 
@@ -789,29 +491,6 @@ async def signout(request: Request, response: Response, db: AsyncSession = Depen
     response.delete_cookie('token')
     response.delete_cookie('oui-session')
     response.delete_cookie('oauth_id_token')
-
-    # Always redirect to Zitadel's end_session_endpoint for a proper OIDC RP-initiated logout.
-    provider_url = await Config.get('oauth.provider_url')
-    oauth_session_id = request.cookies.get('oauth_session_id')
-    if oauth_session_id:
-        response.delete_cookie('oauth_session_id')
-
-    if provider_url:
-        end_session_url = _zitadel_end_session_url(provider_url)
-        id_token = request.cookies.get('oauth_id_token')
-        params = {}
-        if id_token:
-            params['id_token_hint'] = id_token
-        if WEBUI_AUTH_SIGNOUT_REDIRECT_URL:
-            params['post_logout_redirect_uri'] = WEBUI_AUTH_SIGNOUT_REDIRECT_URL
-
-        query = urllib.parse.urlencode(params)
-        redirect_url = f'{end_session_url}?{query}' if query else end_session_url
-        return JSONResponse(
-            status_code=200,
-            content={'status': True, 'redirect_url': redirect_url},
-            headers=response.headers,
-        )
 
     if WEBUI_AUTH_SIGNOUT_REDIRECT_URL:
         return JSONResponse(
@@ -857,41 +536,6 @@ async def delete_oauth_session_by_provider(
     return True
 
 
-############################
-# AddUser  (-> Zitadel Management API)
-############################
-
-
-async def _get_admin_token() -> str | None:
-    """Obtain a Zitadel access token with admin privileges.
-
-    Uses the configured OIDC client credentials grant with the
-    'urn:zitadel:iam:org:project:role:admin' scope so the Management
-    API accepts admin-level operations.
-    """
-    issuer = await _get_zitadel_issuer()
-    client_id = await Config.get('oauth.client_id')
-    client_secret = await Config.get('oauth.client_secret')
-    if not issuer or not client_id:
-        return None
-    data = {
-        'grant_type': 'client_credentials',
-        'scope': 'openid email profile urn:zitadel:iam:org:project:role:admin',
-        'client_id': client_id,
-    }
-    if client_secret:
-        data['client_secret'] = client_secret
-    try:
-        async with ClientSession(trust_env=True) as session:
-            async with session.post(
-                _zitadel_token_url(issuer), data=data, ssl=AIOHTTP_CLIENT_SESSION_SSL
-            ) as resp:
-                if resp.status != 200:
-                    return None
-                body = await resp.json()
-                return body.get('access_token')
-    except Exception:
-        return None
 
 
 @router.post('/add', response_model=SigninResponse)
@@ -964,7 +608,7 @@ async def add_user(
 
 
 ############################
-# GetAdminDetails  (-> Zitadel Management API)
+# GetAdminDetails
 ############################
 
 

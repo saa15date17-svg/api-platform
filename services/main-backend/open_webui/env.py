@@ -770,16 +770,6 @@ ENABLE_OPENAI_API_PASSTHROUGH = os.getenv('ENABLE_OPENAI_API_PASSTHROUGH', 'Fals
 
 WEBUI_AUTH_SIGNOUT_REDIRECT_URL = os.getenv('WEBUI_AUTH_SIGNOUT_REDIRECT_URL', None)
 
-####################################
-# Zitadel (OIDC Auth Provider)
-####################################
-
-ZITADEL_OIDC_URL = os.getenv('ZITADEL_OIDC_URL', 'https://auth.optamus.cloud')
-ZITADEL_OPENWEBUI_CLIENT_ID = os.getenv('ZITADEL_OPENWEBUI_CLIENT_ID', '')
-ZITADEL_OPENWEBUI_CLIENT_SECRET = os.getenv('ZITADEL_OPENWEBUI_CLIENT_SECRET', '')
-ZITADEL_ADMIN_CLIENT_ID = os.getenv('ZITADEL_ADMIN_CLIENT_ID', '')
-ZITADEL_ADMIN_CLIENT_SECRET = os.getenv('ZITADEL_ADMIN_CLIENT_SECRET', '')
-ZITADEL_DOMAIN = os.getenv('ZITADEL_DOMAIN', '')
 
 ####################################
 # Bifrost (AI Gateway)
