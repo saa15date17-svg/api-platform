@@ -1,5 +1,4 @@
-import { Component, ReactNode } from 'react';
-import { Button, Result } from 'antd';
+import { Component, ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
@@ -22,7 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: any) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
   render() {
@@ -32,22 +31,26 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <Result
-          status="error"
-          title="Something went wrong"
-          subTitle={this.state.error?.message || 'An unexpected error occurred'}
-          extra={
-            <Button
-              type="primary"
-              onClick={() => this.setState({ hasError: false, error: null })}
-            >
-              Try again
-            </Button>
-          }
-        />
+        <div className="card p-6 max-w-lg mx-auto my-12 text-center reveal space-y-4">
+          <div className="text-[32px]">⚠</div>
+          <h2 className="font-display text-[22px] font-semibold text-[var(--color-accent)]">
+            Something went wrong
+          </h2>
+          <p className="text-[14px] text-[var(--color-ink-soft)] leading-relaxed">
+            {this.state.error?.message || "An unexpected error occurred"}
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="btn btn-primary cursor-pointer inline-flex"
+          >
+            Try again
+          </button>
+        </div>
       );
     }
 
     return this.props.children;
   }
 }
+
+export default ErrorBoundary;

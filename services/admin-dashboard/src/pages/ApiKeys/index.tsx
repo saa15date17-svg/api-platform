@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Tag, message, Button, Modal, Form, Input, InputNumber, Row, Col } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
-import { api } from '../../api/client';
-import { ErrorBoundary, DataTable, confirmDialog, StatCard } from '../../components';
+import React, { useState, useEffect } from "react";
+import PageHeader from "../../components/PageHeader";
+import { api } from "../../api/client";
+import { money, timeAgo } from "../../components/ui";
 
 interface ApiKey {
   id: string;
@@ -13,181 +12,232 @@ interface ApiKey {
   created_at: number;
 }
 
-const ApiKeys: React.FC = () => {
+export default function ApiKeys() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [form] = Form.useForm();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyUserId, setNewKeyUserId] = useState("");
+  const [newKeyLimit, setNewKeyLimit] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
 
-  const fetchKeys = useCallback(async () => {
+  const fetchKeys = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const data = await api.get<{ keys: ApiKey[] }>('/api/v1/keys');
+      const data = await api.get<{ keys: ApiKey[] }>("/api/v1/keys");
       setKeys(data.keys || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load API keys');
-      message.error('Failed to load API keys');
+      console.error("Failed to load keys", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchKeys();
-  }, [fetchKeys]);
+  }, []);
 
-  const handleCreate = async (values: { name: string; user_id: string; spending_limit?: number }) => {
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post('/api/v1/keys', {
-        name: values.name,
-        user_id: values.user_id,
-        spending_limit: values.spending_limit,
+      const res = await api.post<{ token: string }>("/api/v1/keys", {
+        name: newKeyName,
+        user_id: newKeyUserId,
+        spending_limit: newKeyLimit ? parseFloat(newKeyLimit) : null,
       });
-      message.success('API Key created successfully');
-      setIsModalVisible(false);
-      form.resetFields();
+      setCreatedKey(res.token);
+      setNewKeyName("");
+      setNewKeyUserId("");
+      setNewKeyLimit("");
       fetchKeys();
-    } catch {
-      message.error('Failed to create API key');
+    } catch (err) {
+      console.error("Failed to create key", err);
+      alert("Failed to create API key.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = useCallback((id: string, name: string) => {
-    confirmDialog({
-      title: 'Revoke API Key',
-      content: `Are you sure you want to revoke API key "${name}"? This action cannot be undone.`,
-      okText: 'Revoke',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await api.delete(`/api/v1/keys/${id}`);
-          message.success('API Key revoked');
-          setKeys(keys.filter(k => k.id !== id));
-        } catch {
-          message.error('Failed to revoke API key');
-        }
-      },
-    });
-  }, [keys]);
+  const handleRevoke = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to revoke API key "${name}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/v1/keys/${id}`);
+      setKeys((prev) => prev.filter((k) => k.id !== id));
+    } catch (err) {
+      console.error("Failed to revoke key", err);
+      alert("Failed to revoke API key.");
+    }
+  };
 
-  const columns = [
-    { title: 'Name', dataIndex: 'name', key: 'name', sorter: (a: ApiKey, b: ApiKey) => a.name.localeCompare(b.name) },
-    {
-      title: 'Status',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      filters: [
-        { text: 'Active', value: true },
-        { text: 'Disabled', value: false },
-      ],
-      onFilter: (value: any, record: ApiKey) => record.is_active === value,
-      render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? 'Active' : 'Disabled'}</Tag>,
-    },
-    {
-      title: 'Spending Limit',
-      dataIndex: 'spending_limit',
-      key: 'spending_limit',
-      render: (v: number | null) => v !== null && v !== undefined ? `$${v.toFixed(2)}` : 'Unlimited',
-      sorter: (a: ApiKey, b: ApiKey) => (a.spending_limit || 0) - (b.spending_limit || 0),
-    },
-    { title: 'Created', dataIndex: 'created_at', key: 'created_at', render: (v: number) => v ? new Date(v * 1000).toLocaleDateString() : '-' },
-  ];
-
-  const activeKeys = keys.filter(k => k.is_active).length;
-  const revokedKeys = keys.length - activeKeys;
-
-  if (error) {
+  if (loading) {
     return (
-      <ErrorBoundary>
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ margin: 0 }}>Developer API Keys</h2>
-            <Button type="primary" onClick={() => { form.resetFields(); setIsModalVisible(true); }}>
-              Generate API Key
-            </Button>
-          </div>
-          <div style={{ padding: 24, background: '#fff', borderRadius: 8 }}>
-            <p style={{ color: '#ff4d4f' }}>{error}</p>
-          </div>
-        </div>
-      </ErrorBoundary>
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <span className="w-8 h-8 rounded-full border-4 border-[var(--color-line-strong)] border-t-[var(--color-accent)] animate-spin" />
+        <span className="text-[13px] text-[var(--color-ink-faint)] font-semibold tracking-wider uppercase">Loading API keys...</span>
+      </div>
     );
   }
 
+  const activeKeys = keys.filter((k) => k.is_active).length;
+
   return (
-    <ErrorBoundary>
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ margin: 0 }}>Developer API Keys</h2>
-          <Button type="primary" onClick={() => { form.resetFields(); setIsModalVisible(true); }}>
-            Generate API Key
-          </Button>
+    <div className="reveal">
+      <PageHeader
+        eyebrow="Platform · Security"
+        title="Developer API Keys"
+        description="Provision and revoke keys for programmatically accessing the Optamus LLM inference gateway. Spending caps protect against runway bills."
+        actions={
+          <button onClick={() => { setCreatedKey(null); setIsModalOpen(true); }} className="btn btn-accent cursor-pointer">
+            <span className="text-base leading-none">＋</span> Generate API Key
+          </button>
+        }
+      />
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="card p-5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">Total Keys</p>
+          <p className="font-display text-[28px] font-semibold mt-1.5 tracking-tight">{keys.length}</p>
         </div>
-
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col span={8}>
-            <StatCard title="Total Keys" value={keys.length} />
-          </Col>
-          <Col span={8}>
-            <StatCard title="Active Keys" value={activeKeys} valueStyle={{ color: '#3f8600' }} />
-          </Col>
-          <Col span={8}>
-            <StatCard title="Revoked Keys" value={revokedKeys} valueStyle={{ color: '#cf1322' }} />
-          </Col>
-        </Row>
-
-        <div style={{ background: '#fff', padding: 16, borderRadius: 8 }}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: 40 }}>Loading...</div>
-          ) : (
-            <DataTable<ApiKey>
-              columns={columns}
-              dataSource={keys}
-              loading={loading}
-              onRefresh={fetchKeys}
-              searchable
-              onSearch={(values) => setSearchText(values.search || '')}
-              rowActions={(record) => (
-                <>
-                  <Button type="link" danger size="small" onClick={() => handleDelete(record.id, record.name)}>
-                    Revoke
-                  </Button>
-                </>
-              )}
-            />
-          )}
+        <div className="card p-5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">Active Keys</p>
+          <p className="font-display text-[28px] font-semibold mt-1.5 tracking-tight text-[var(--color-sage)]">{activeKeys}</p>
         </div>
-
-        <Modal
-          title="Generate New API Key"
-          open={isModalVisible}
-          onCancel={() => { setIsModalVisible(false); form.resetFields(); }}
-          onOk={() => form.submit()}
-          confirmLoading={submitting}
-          destroyOnClose
-        >
-          <Form form={form} layout="vertical" onFinish={handleCreate}>
-            <Form.Item name="name" label="Key Name" rules={[{ required: true, message: 'Please enter key name' }]}>
-              <Input placeholder="e.g. Production Backend" />
-            </Form.Item>
-            <Form.Item name="user_id" label="User ID to Bind" rules={[{ required: true, message: 'Please enter User ID' }]}>
-              <Input placeholder="User ID of the developer" />
-            </Form.Item>
-            <Form.Item name="spending_limit" label="Spending Limit ($USD, Optional)">
-              <InputNumber style={{ width: '100%' }} min={0} placeholder="e.g. 50.00" />
-            </Form.Item>
-          </Form>
-        </Modal>
+        <div className="card p-5">
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">Revoked Keys</p>
+          <p className="font-display text-[28px] font-semibold mt-1.5 tracking-tight text-[var(--color-accent)]">{keys.length - activeKeys}</p>
+        </div>
       </div>
-    </ErrorBoundary>
-  );
-};
 
-export default ApiKeys;
+      <div className="card overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)] bg-[var(--color-canvas-2)]/50">
+              <th className="font-semibold px-5 py-3">Key Name</th>
+              <th className="font-semibold px-5 py-3">Prefix</th>
+              <th className="font-semibold px-5 py-3">Status</th>
+              <th className="font-semibold px-5 py-3">Spending Limit</th>
+              <th className="font-semibold px-5 py-3">Created</th>
+              <th className="font-semibold px-5 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--color-line)]">
+            {keys.map((k) => (
+              <tr key={k.id} className="hover:bg-[var(--color-canvas-2)]/40 transition-colors">
+                <td className="px-5 py-3.5 font-semibold text-[14px]">{k.name}</td>
+                <td className="px-5 py-3.5 font-mono text-[13px] text-[var(--color-ink-soft)]">{k.key_prefix}...</td>
+                <td className="px-5 py-3.5">
+                  <span className={`tag ${k.is_active ? "bg-[var(--color-sage-soft)] text-[var(--color-sage)] border-[#cdddcc]" : "bg-[var(--color-accent-soft)] text-[var(--color-accent)] border-[#f0c9ba]"}`}>
+                    {k.is_active ? "Active" : "Disabled"}
+                  </span>
+                </td>
+                <td className="px-5 py-3.5 text-[13px] tabular-nums font-medium">
+                  {k.spending_limit !== null && k.spending_limit !== undefined ? money(k.spending_limit) : "Unlimited"}
+                </td>
+                <td className="px-5 py-3.5 text-[13px] text-[var(--color-ink-faint)]">
+                  {k.created_at ? timeAgo(new Date(k.created_at * 1000)) : "-"}
+                </td>
+                <td className="px-5 py-3.5 text-right">
+                  {k.is_active && (
+                    <button
+                      onClick={() => handleRevoke(k.id, k.name)}
+                      className="text-[12px] font-semibold text-[var(--color-accent)] hover:underline cursor-pointer"
+                    >
+                      Revoke Key
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {keys.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-5 py-12 text-center text-[var(--color-ink-faint)]">
+                  No API keys have been generated yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Generator Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs reveal">
+          <div className="card max-w-md w-full p-6 bg-[var(--color-card)] relative">
+            <h3 className="font-display text-[22px] font-semibold mb-2">Generate New API Key</h3>
+            
+            {createdKey ? (
+              <div className="space-y-4">
+                <div className="p-3 bg-[var(--color-sage-soft)] text-[var(--color-sage)] rounded-lg text-[13px] font-semibold border border-[#cdddcc]">
+                  API key generated successfully! Copy it now. You won't be able to see it again.
+                </div>
+                <div className="p-3.5 font-mono text-[14px] bg-[var(--color-canvas-2)] text-[var(--color-ink)] rounded-lg break-all select-all border border-[var(--color-line)]">
+                  {createdKey}
+                </div>
+                <button
+                  onClick={() => { setIsModalOpen(false); setCreatedKey(null); }}
+                  className="btn btn-primary w-full cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleCreate} className="space-y-4">
+                <label className="block">
+                  <span className="block text-[13px] font-semibold mb-1.5">Key Name</span>
+                  <input
+                    className="input"
+                    placeholder="e.g. Production Backend"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    required
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-[13px] font-semibold mb-1.5">User ID to Bind</span>
+                  <input
+                    className="input"
+                    placeholder="User ID of the developer"
+                    value={newKeyUserId}
+                    onChange={(e) => setNewKeyUserId(e.target.value)}
+                    required
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-[13px] font-semibold mb-1.5">Spending Limit ($USD, Optional)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input"
+                    placeholder="e.g. 50.00"
+                    value={newKeyLimit}
+                    onChange={(e) => setNewKeyLimit(e.target.value)}
+                  />
+                </label>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="btn btn-ghost cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-accent cursor-pointer"
+                    disabled={submitting}
+                  >
+                    {submitting ? "Generating..." : "Generate"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

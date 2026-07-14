@@ -1,147 +1,90 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { message } from 'antd';
-import { api } from '../../api/client';
-import { ErrorBoundary, DataTable, confirmDialog } from '../../components';
+import React, { useState, useEffect } from "react";
+import PageHeader from "../../components/PageHeader";
+import MembersTable from "../../components/MembersTable";
+import { api } from "../../api/client";
+import { fmt, money } from "../../components/ui";
 
-interface User {
+interface Member {
   id: string;
-  email: string;
   name: string;
+  email: string;
   role: string;
-  is_active: boolean;
-  created_at: number;
+  seat: string;
+  status: string;
+  department: string;
+  joinedAt: string;
+  lastActiveAt: string;
+  messages: number;
+  tokens: number;
+  spend: number;
+  avatarHue: number;
 }
 
-const Users: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
+export default function Users() {
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchText, setSearchText] = useState('');
-
-  const fetchUsers = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.get<{ users: User[] }>('/api/v1/users/all');
-      setUsers(data.users || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users');
-      message.error('Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  const updateUserRole = async (id: string, role: string) => {
-    try {
-      await api.post(`/api/v1/users/${id}/update`, { role });
-      message.success(`User role updated to ${role}`);
-      setUsers(users.map(u => u.id === id ? { ...u, role } : u));
-    } catch {
-      message.error('Failed to update user role');
+    async function loadMembers() {
+      try {
+        const data = await api.get<Member[]>("/api/v1/analytics/dashboard/members");
+        setMembers(data);
+      } catch (err) {
+        console.error("Failed to load members", err);
+      } finally {
+        setLoading(false);
+      }
     }
-  };
+    loadMembers();
+  }, []);
 
-  const confirmDelete = (id: string, email: string) => {
-    confirmDialog({
-      title: 'Delete User',
-      content: `Are you sure you want to delete user "${email}"? This action cannot be undone.`,
-      onOk: async () => {
-        try {
-          await api.delete(`/api/v1/users/${id}`);
-          message.success('User deleted');
-          setUsers(users.filter(u => u.id !== id));
-        } catch {
-          message.error('Failed to delete user');
-        }
-      },
-    });
-  };
-
-  const columns = [
-    { title: 'Email', dataIndex: 'email', key: 'email', sorter: (a: User, b: User) => a.email.localeCompare(b.email) },
-    { title: 'Name', dataIndex: 'name', key: 'name', sorter: (a: User, b: User) => a.name.localeCompare(b.name) },
-    {
-      title: 'Role',
-      dataIndex: 'role',
-      key: 'role',
-      sorter: (a: User, b: User) => a.role.localeCompare(b.role),
-      filters: [
-        { text: 'Admin', value: 'admin' },
-        { text: 'User', value: 'user' },
-        { text: 'Billing', value: 'billing' },
-      ],
-      onFilter: (value: any, record: User) => record.role === value,
-      render: (role: string) => (
-        <span style={{ textTransform: 'uppercase' }}>{role}</span>
-      ),
-    },
-    {
-      title: 'Active',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      render: (v: boolean) => (v ? 'Yes' : 'No'),
-      sorter: (a: User, b: User) => Number(a.is_active) - Number(b.is_active),
-    },
-    {
-      title: 'Created',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (v: number) => v ? new Date(v * 1000).toLocaleDateString() : '-',
-      sorter: (a: User, b: User) => a.created_at - b.created_at,
-      defaultSortOrder: 'descend' as const,
-    },
-  ];
-
-  const filteredUsers = users.filter(
-    (u) =>
-      u.email.toLowerCase().includes(searchText.toLowerCase()) ||
-      u.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchText.toLowerCase())
-  );
-
-  if (error) {
+  if (loading) {
     return (
-      <ErrorBoundary>
-        <div>
-          <h2 style={{ marginBottom: 16 }}>Users</h2>
-          <div style={{ padding: 24, background: '#fff', borderRadius: 8 }}>
-            <p style={{ color: '#ff4d4f' }}>{error}</p>
-          </div>
-        </div>
-      </ErrorBoundary>
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <span className="w-8 h-8 rounded-full border-4 border-[var(--color-line-strong)] border-t-[var(--color-accent)] animate-spin" />
+        <span className="text-[13px] text-[var(--color-ink-faint)] font-semibold tracking-wider uppercase">Loading members...</span>
+      </div>
     );
   }
 
-  return (
-    <ErrorBoundary>
-      <div>
-        <h2 style={{ marginBottom: 16 }}>Users</h2>
-        <DataTable<User>
-          columns={columns}
-          dataSource={filteredUsers}
-          loading={loading}
-          onRefresh={fetchUsers}
-          searchable
-          onSearch={(values) => setSearchText(values.search || '')}
-          rowActions={(record) => (
-            <>
-              {record.role !== 'admin' ? (
-                <a key="make-admin" onClick={() => updateUserRole(record.id, 'admin')}>Make Admin</a>
-              ) : (
-                <a key="demote" onClick={() => updateUserRole(record.id, 'user')}>Demote</a>
-              )}
-              <a key="delete" style={{ color: '#ff4d4f', marginLeft: 12 }} onClick={() => confirmDelete(record.id, record.email)}>Delete</a>
-            </>
-          )}
-        />
-      </div>
-    </ErrorBoundary>
-  );
-};
+  const active = members.filter((m) => m.status === "active");
+  const admins = members.filter((m) => m.role !== "member");
+  const totalSpend = members.reduce((s, m) => s + Number(m.spend), 0);
 
-export default Users;
+  const stats = [
+    { label: "Total members", value: fmt(members.length) },
+    { label: "Active now / 7d", value: `${active.length}` },
+    { label: "Admins & owners", value: fmt(admins.length) },
+    { label: "Blended spend", value: money(totalSpend) },
+  ];
+
+  return (
+    <div className="reveal">
+      <PageHeader
+        eyebrow="Workspace · People"
+        title="Members"
+        description="Manage who has access to Optamus, their roles, seat types, and per-member usage. Owners and admins can provision, upgrade, and offboard people."
+        actions={
+          <button className="btn btn-accent cursor-pointer">
+            <span className="text-base leading-none">＋</span> Invite people
+          </button>
+        }
+      />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {stats.map((s) => (
+          <div key={s.label} className="card p-5">
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+              {s.label}
+            </p>
+            <p className="font-display text-[28px] font-semibold mt-1.5 tracking-tight">
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <MembersTable members={members} />
+    </div>
+  );
+}
